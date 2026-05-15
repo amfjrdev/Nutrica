@@ -1,0 +1,60 @@
+services:
+  backend:
+    build:
+      context: ./NP-backend
+      dockerfile: Dockerfile
+    container_name: np-backend
+    env_file:
+      - ./NP-backend/.env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+    expose:
+      - "8080"
+    networks:
+      - np-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./NP-frontend
+      dockerfile: Dockerfile
+    container_name: np-frontend
+    expose:
+      - "80"
+    networks:
+      - np-net
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: np-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - np-net
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+
+networks:
+  np-net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
