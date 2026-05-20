@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.log
+result_nutrition5k.json
+nutrition5k_db.json
+runs/
