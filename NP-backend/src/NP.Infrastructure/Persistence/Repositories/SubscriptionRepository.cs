@@ -1,0 +1,24 @@
+using Microsoft.EntityFrameworkCore;
+using NP.Domain.Subscriptions;
+using NP.Domain.Subscriptions.Repositories;
+
+namespace NP.Infrastructure.Persistence.Repositories;
+
+internal sealed class SubscriptionRepository : Repository<Subscription>, ISubscriptionRepository
+{
+    public SubscriptionRepository(ApplicationDbContext context) : base(context) { }
+
+    public async Task<Subscription?> GetActiveByClientIdAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        await Context.Subscriptions
+            .FirstOrDefaultAsync(s => s.ClientId == clientId && s.Status == SubscriptionStatus.Active, cancellationToken);
+
+    public async Task<Subscription?> GetPendingByClientIdAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        await Context.Subscriptions
+            .FirstOrDefaultAsync(s => s.ClientId == clientId && s.Status == SubscriptionStatus.PendingApproval, cancellationToken);
+
+    public async Task<List<Subscription>> GetByClientIdAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        await Context.Subscriptions.Where(s => s.ClientId == clientId).ToListAsync(cancellationToken);
+
+    public async Task<List<Subscription>> GetAllAsync(CancellationToken cancellationToken = default) =>
+        await Context.Subscriptions.ToListAsync(cancellationToken);
+}
