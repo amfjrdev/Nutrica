@@ -66,6 +66,7 @@ public static class DependencyInjection
 
         // Email (2FA OTP delivery)
         services.Configure<EmailOptions>(configuration.GetSection("Email"));
+        services.AddHttpClient("brevo");
         services.AddScoped<IEmailService, EmailService>();
 
         // Stripe

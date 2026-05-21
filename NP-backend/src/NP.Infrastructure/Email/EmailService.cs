@@ -1,8 +1,6 @@
-using MailKit.Net.Smtp;
-using MailKit.Security;
+using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MimeKit;
 using NP.Application.Abstractions.Email;
 
 namespace NP.Infrastructure.Email;
@@ -11,13 +9,16 @@ internal sealed class EmailService : IEmailService
 {
     private readonly EmailOptions _options;
     private readonly ILogger<EmailService> _logger;
+    private readonly HttpClient _http;
 
     public EmailService(
         IOptions<EmailOptions> options,
-        ILogger<EmailService> logger)
+        ILogger<EmailService> logger,
+        IHttpClientFactory httpClientFactory)
     {
         _options = options.Value;
-        _logger = logger;
+        _logger  = logger;
+        _http    = httpClientFactory.CreateClient("brevo");
     }
 
     public async Task SendOtpAsync(
@@ -26,59 +27,25 @@ internal sealed class EmailService : IEmailService
         string otp,
         CancellationToken cancellationToken = default)
     {
-        var message = BuildMessage(toEmail, firstName, otp);
-
-        using var client = new SmtpClient();
-
-        await client.ConnectAsync(
-            _options.SmtpHost,
-            _options.SmtpPort,
-            _options.SmtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls,
-            cancellationToken);
-
-        await client.AuthenticateAsync(
-            _options.Username,
-            _options.Password,
-            cancellationToken);
-
-        await client.SendAsync(message, cancellationToken);
-
-        await client.DisconnectAsync(
-            true,
-            cancellationToken);
-
-        _logger.LogInformation("OTP email sent successfully.");
-    }
-
-    private MimeMessage BuildMessage(
-        string toEmail,
-        string firstName,
-        string otp)
-    {
-        var message = new MimeMessage();
-
-        message.From.Add(
-            new MailboxAddress(
-                _options.FromName,
-                _options.FromAddress
-            )
-        );
-
-        message.To.Add(
-            new MailboxAddress(
-                firstName,
-                toEmail
-            )
-        );
-
-        message.Subject = "Your Nutrica Verification Code";
-
-        message.Body = new TextPart("html")
+        var payload = new
         {
-            Text = BuildHtmlBody(firstName, otp)
+            sender     = new { name = _options.FromName, email = _options.FromAddress },
+            to         = new[] { new { email = toEmail, name = firstName } },
+            subject    = "Your Nutrica Verification Code",
+            htmlContent = BuildHtmlBody(firstName, otp)
         };
 
-        return message;
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
+        request.Headers.Add("api-key", _options.Password);
+        request.Content = JsonContent.Create(payload);
+
+        var response = await _http.SendAsync(request, cancellationToken);
+        var body     = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+            throw new Exception($"Brevo API error {response.StatusCode}: {body}");
+
+        _logger.LogInformation("OTP email sent successfully via Brevo API.");
     }
 
     private static string BuildHtmlBody(
