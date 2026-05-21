@@ -33,7 +33,7 @@ internal sealed class EmailService : IEmailService
         await client.ConnectAsync(
             _options.SmtpHost,
             _options.SmtpPort,
-            SecureSocketOptions.StartTls,
+            _options.SmtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls,
             cancellationToken);
 
         await client.AuthenticateAsync(
