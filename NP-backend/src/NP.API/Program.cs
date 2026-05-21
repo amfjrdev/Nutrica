@@ -34,6 +34,15 @@ app.MapHub<NotificationHub>("/hubs/notifications", options =>
     options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets;
 });
 app.MapHealthChecks("/health");
+
+// Temporary debug endpoint — remove after fixing email
+app.MapGet("/debug/email-config", (IConfiguration config) => new {
+    SmtpHost    = config["Email:SmtpHost"],
+    SmtpPort    = config["Email:SmtpPort"],
+    Username    = config["Email:Username"],
+    Password    = config["Email:Password"]?[..10] + "...",
+    FromAddress = config["Email:FromAddress"],
+});
 if (app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
