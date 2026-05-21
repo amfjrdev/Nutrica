@@ -1,7 +1,7 @@
 [build]
   base    = "NP-frontend"
   command = "npm run build"
-  publish = "NP-frontend/dist"
+  publish = "dist"
 
 [[redirects]]
   from   = "/*"
