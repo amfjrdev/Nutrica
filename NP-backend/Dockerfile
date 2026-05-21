@@ -34,7 +34,12 @@ COPY --from=build /app/publish .
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=5 \
+# Limit .NET GC memory to fit in 512MB free tier
+ENV DOTNET_GCHeapHardLimit=400000000
+ENV DOTNET_GCConserveMemory=9
+ENV DOTNET_TieredCompilation=0
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=5 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["dotnet", "NP.API.dll"]
