@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Camera, Upload, X, Loader2, Flame, Beef, Wheat, Droplets } from 'lucide-react';
+import { Camera, Upload, X, Loader2, Flame, Beef, Wheat, Droplets, Trash2 } from 'lucide-react';
 import { estimateCalories } from '../services/api';
 
 const TIPS = [
@@ -26,13 +26,23 @@ const MacroBadge = ({ icon: Icon, label, value, color }) => (
   </div>
 );
 
+const STORAGE_KEY = 'calorie_history';
+
+const loadHistory = () => {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch { return []; }
+};
+
+const saveHistory = (entries) =>
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+
 const CalorieScanPage = () => {
   const [preview, setPreview] = useState(null);
   const [file, setFile]       = useState(null);
   const [result, setResult]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(loadHistory);
   const fileInputRef          = useRef(null);
 
   const handleFile = (f) => {
@@ -56,15 +66,27 @@ const CalorieScanPage = () => {
     try {
       const data = await estimateCalories(file);
       setResult(data);
-      setHistory((prev) => [
-        {
-          foodName:          data.foodName,
-          estimatedCalories: data.estimatedCalories,
-          time:              new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          preview,
-        },
-        ...prev.slice(0, 4),
-      ]);
+
+      const entry = {
+        id:                Date.now(),
+        foodName:          data.foodName,
+        estimatedCalories: data.estimatedCalories,
+        totalFat:          data.totalFat,
+        totalCarbs:        data.totalCarbs,
+        totalProtein:      data.totalProtein,
+        itemsDetected:     data.itemsDetected,
+        foods:             data.foods,
+        details:           data.details,
+        time:              new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date:              new Date().toLocaleDateString(),
+        preview,
+      };
+
+      setHistory((prev) => {
+        const next = [entry, ...prev.slice(0, 9)];
+        saveHistory(next);
+        return next;
+      });
     } catch (err) {
       setError(err?.detail || 'Failed to estimate calories. Please try again.');
     } finally {
@@ -78,6 +100,28 @@ const CalorieScanPage = () => {
     setResult(null);
     setError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSelectHistory = (scan) => {
+    setPreview(scan.preview);
+    setFile(null);
+    setError('');
+    setResult({
+      foodName:          scan.foodName,
+      estimatedCalories: scan.estimatedCalories,
+      totalFat:          scan.totalFat,
+      totalCarbs:        scan.totalCarbs,
+      totalProtein:      scan.totalProtein,
+      itemsDetected:     scan.itemsDetected,
+      foods:             scan.foods,
+      details:           scan.details,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   return (
@@ -121,12 +165,14 @@ const CalorieScanPage = () => {
                     <X className="w-4 h-4 text-slate-600" />
                   </button>
                 </div>
-                <button onClick={handleScan} disabled={loading}
-                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2">
-                  {loading
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</>
-                    : <><Camera className="w-4 h-4" /> Estimate Calories</>}
-                </button>
+                {file && (
+                  <button onClick={handleScan} disabled={loading}
+                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2">
+                    {loading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</>
+                      : <><Camera className="w-4 h-4" /> Estimate Calories</>}
+                  </button>
+                )}
               </div>
             )}
 
@@ -134,16 +180,13 @@ const CalorieScanPage = () => {
               onChange={(e) => handleFile(e.target.files[0])} />
           </div>
 
-          {/* Error */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-xl">{error}</div>
           )}
 
-          {/* Result */}
           {result && (
             <div className="bg-white rounded-2xl border border-emerald-200 p-6 shadow-sm space-y-6">
 
-              {/* Header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
@@ -160,14 +203,12 @@ const CalorieScanPage = () => {
                 </div>
               </div>
 
-              {/* Macro totals */}
               <div className="grid grid-cols-3 gap-3">
-                <MacroBadge icon={Beef}    label="Protein" value={result.totalProtein?.toFixed(1) ?? 0} color="bg-blue-50 text-blue-700" />
-                <MacroBadge icon={Wheat}   label="Carbs"   value={result.totalCarbs?.toFixed(1)   ?? 0} color="bg-amber-50 text-amber-700" />
-                <MacroBadge icon={Droplets} label="Fat"    value={result.totalFat?.toFixed(1)      ?? 0} color="bg-rose-50 text-rose-700" />
+                <MacroBadge icon={Beef}     label="Protein" value={result.totalProtein?.toFixed(1) ?? 0} color="bg-blue-50 text-blue-700" />
+                <MacroBadge icon={Wheat}    label="Carbs"   value={result.totalCarbs?.toFixed(1)   ?? 0} color="bg-amber-50 text-amber-700" />
+                <MacroBadge icon={Droplets} label="Fat"     value={result.totalFat?.toFixed(1)      ?? 0} color="bg-rose-50 text-rose-700" />
               </div>
 
-              {/* Per-food breakdown */}
               {result.foods && result.foods.length > 0 && (
                 <div>
                   <h4 className="text-sm font-semibold text-slate-700 mb-3">Breakdown per item</h4>
@@ -207,21 +248,28 @@ const CalorieScanPage = () => {
 
           {history.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">Recent Scans</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-900">Recent Scans</h3>
+                <button onClick={handleClearHistory}
+                  className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 transition-colors">
+                  <Trash2 className="w-3 h-3" /> Clear
+                </button>
+              </div>
               <div className="space-y-2">
-                {history.map((scan, idx) => (
-                  <div key={idx} className="flex items-center p-3 rounded-lg hover:bg-slate-50 transition-colors">
+                {history.map((scan) => (
+                  <button key={scan.id} onClick={() => handleSelectHistory(scan)}
+                    className="w-full flex items-center p-3 rounded-xl hover:bg-emerald-50 border border-transparent hover:border-emerald-200 transition-all text-left">
                     <img src={scan.preview} alt={scan.foodName}
                       className="w-10 h-10 rounded-lg object-cover mr-3 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-900 text-sm truncate">{scan.foodName}</p>
-                      <p className="text-xs text-slate-500">{scan.time}</p>
+                      <p className="text-xs text-slate-500">{scan.date} · {scan.time}</p>
                     </div>
-                    <div className="text-right ml-2">
-                      <p className="font-bold text-slate-900 text-sm">{scan.estimatedCalories}</p>
-                      <p className="text-xs text-slate-500">cal</p>
+                    <div className="text-right ml-2 flex-shrink-0">
+                      <p className="font-bold text-emerald-600 text-sm">{scan.estimatedCalories}</p>
+                      <p className="text-xs text-slate-500">kcal</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
