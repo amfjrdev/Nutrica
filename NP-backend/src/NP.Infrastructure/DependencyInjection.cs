@@ -75,6 +75,8 @@ public static class DependencyInjection
 
         // AI
         services.Configure<AIOptions>(configuration.GetSection("AI"));
+        services.AddHttpClient("hf-calorie").ConfigureHttpClient(c =>
+            c.Timeout = TimeSpan.FromSeconds(60));
         services.AddScoped<IAIService, AIService>();
 
         return services;

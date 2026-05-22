@@ -37,6 +37,9 @@ public static class AIEndpoints
         ICommandHandler<EstimateCaloriesCommand, CalorieEstimationResult> handler,
         CancellationToken cancellationToken)
     {
+        if (image is null || image.Length == 0)
+            return TypedResults.Problem(title: "Bad Request", detail: "No image file provided.", statusCode: 400);
+
         await using var stream = image.OpenReadStream();
         var result = await handler.HandleAsync(new EstimateCaloriesCommand(stream, image.FileName), cancellationToken);
         return result.IsFailure ? result.Error.ToProblem() : TypedResults.Ok(result.Value);

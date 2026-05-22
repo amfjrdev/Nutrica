@@ -1,4 +1,6 @@
 using System.ClientModel;
+using System.Net.Http.Headers;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using NP.Application.Abstractions.AI;
 using OpenAI;
@@ -8,20 +10,17 @@ namespace NP.Infrastructure.AI;
 
 internal sealed class AIService : IAIService
 {
-    private readonly ChatClient _chatClient;
-    private readonly ChatClient _visionClient;
+    private readonly ChatClient       _chatClient;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    // ── Domain guard ─────────────────────────────────────────────────────────
-    // Step 1: fast classification call — returns "YES" or "NO" only.
-    // Runs before the main model so off-topic input never reaches it.
+    private const string HfSpaceUrl = "https://afcoder-nutrica-ia.hf.space/predict";
+
     private const string ClassifierPrompt =
         "You are a strict topic classifier. " +
         "Your ONLY job is to decide if a user message is related to nutrition, food, diet, calories, meal planning, healthy eating, or food substitutions. " +
         "Reply with exactly one word: YES if it is related, NO if it is not. " +
         "No explanation. No punctuation. Just YES or NO.";
 
-    // ── Main assistant ───────────────────────────────────────────────────────
-    // Step 2: only reached when classifier returns YES.
     private const string SystemPrompt =
         "You are NutriBot, a specialized nutrition assistant embedded in a health platform. " +
         "\n\nYOUR DOMAIN — you ONLY answer questions about:\n" +
@@ -40,21 +39,19 @@ internal sealed class AIService : IAIService
 
     private static readonly Uri GroqEndpoint = new("https://api.groq.com/openai/v1/");
 
-    public AIService(IOptions<AIOptions> options)
+    public AIService(IOptions<AIOptions> options, IHttpClientFactory httpClientFactory)
     {
-        var opts = options.Value;
+        var opts       = options.Value;
         var credential = new ApiKeyCredential(opts.ApiKey);
-        var clientOptions = new OpenAIClientOptions { Endpoint = GroqEndpoint };
-        var client = new OpenAIClient(credential, clientOptions);
+        var clientOpts = new OpenAIClientOptions { Endpoint = GroqEndpoint };
+        var client     = new OpenAIClient(credential, clientOpts);
 
-        _chatClient   = client.GetChatClient(opts.Model);
-        _visionClient = client.GetChatClient("llama-3.2-11b-vision-preview");
+        _chatClient        = client.GetChatClient(opts.Model);
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<string> ChatAsync(string message, CancellationToken cancellationToken = default)
     {
-        // ── Layer 1: intent classification ──────────────────────────────────────────
-        // Fast, cheap call — classify before the main model ever sees the input.cd 
         var classifyMessages = new List<ChatMessage>
         {
             new SystemChatMessage(ClassifierPrompt),
@@ -66,11 +63,9 @@ internal sealed class AIService : IAIService
 
         var verdict = classifyResponse.Value.Content[0].Text.Trim().ToUpperInvariant();
 
-        // Treat anything other than a clear YES as off-topic (fail-safe default)
         if (!verdict.StartsWith("YES"))
             return "I can only help with nutrition and diet-related questions.";
 
-        // ── Layer 2: main nutrition assistant ──────────────────────────────────────
         var messages = new List<ChatMessage>
         {
             new SystemChatMessage(SystemPrompt),
@@ -86,42 +81,72 @@ internal sealed class AIService : IAIService
     {
         using var ms = new MemoryStream();
         await imageStream.CopyToAsync(ms, cancellationToken);
-        var base64 = Convert.ToBase64String(ms.ToArray());
+        ms.Position = 0;
 
         var mimeType = fileName.ToLowerInvariant() switch
         {
             var f when f.EndsWith(".png")  => "image/png",
             var f when f.EndsWith(".webp") => "image/webp",
-            var f when f.EndsWith(".gif")  => "image/gif",
+            var f when f.EndsWith(".bmp")  => "image/bmp",
             _                              => "image/jpeg"
         };
 
-        var messages = new List<ChatMessage>
+        using var content      = new MultipartFormDataContent();
+        var       imageContent = new StreamContent(ms);
+        imageContent.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
+        content.Add(imageContent, "image", fileName);
+
+        var http     = _httpClientFactory.CreateClient("hf-calorie");
+        var response = await http.PostAsync(HfSpaceUrl, content, cancellationToken);
+        var body     = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+            throw new Exception($"Calorie estimation service error {response.StatusCode}: {body}");
+
+        using var doc  = JsonDocument.Parse(body);
+        var       root = doc.RootElement;
+
+        var foods = new List<DetectedFoodItem>();
+        if (root.TryGetProperty("foods", out var foodsEl))
         {
-            new SystemChatMessage(
-                "You are a nutrition expert. When given a food image, respond ONLY with valid JSON " +
-                "in this exact format: {\"foodName\":\"...\",\"estimatedCalories\":123,\"details\":\"...\"} " +
-                "No markdown, no extra text."),
-            new UserChatMessage(
-                ChatMessageContentPart.CreateTextPart("Identify the food and estimate its calories."),
-                ChatMessageContentPart.CreateImagePart(
-                    new Uri($"data:{mimeType};base64,{base64}"),
-                    ChatImageDetailLevel.Auto))
-        };
+            foreach (var f in foodsEl.EnumerateArray())
+            {
+                foods.Add(new DetectedFoodItem(
+                    Name:       f.GetProperty("name").GetString()   ?? "",
+                    Confidence: f.GetProperty("confidence").GetDouble(),
+                    WeightG:    f.GetProperty("weight_g").GetDouble(),
+                    Calories:   f.GetProperty("calories").GetDouble(),
+                    FatG:       f.GetProperty("fat_g").GetDouble(),
+                    CarbsG:     f.GetProperty("carbs_g").GetDouble(),
+                    ProteinG:   f.GetProperty("protein_g").GetDouble(),
+                    Source:     f.GetProperty("source").GetString() ?? ""
+                ));
+            }
+        }
 
-        var response = await _visionClient.CompleteChatAsync(messages, cancellationToken: cancellationToken);
-        var json = response.Value.Content[0].Text.Trim();
+        var totalCalories = root.GetProperty("total_calories").GetDouble();
+        var totalFat      = root.GetProperty("total_fat_g").GetDouble();
+        var totalCarbs    = root.GetProperty("total_carbs_g").GetDouble();
+        var totalProtein  = root.GetProperty("total_protein_g").GetDouble();
+        var itemsDetected = root.GetProperty("items_detected").GetInt32();
 
-        if (json.StartsWith("```"))
-            json = json.Split('\n').Skip(1).TakeWhile(l => !l.StartsWith("```"))
-                       .Aggregate((a, b) => $"{a}\n{b}").Trim();
+        var foodName = foods.Count > 0
+            ? string.Join(", ", foods.Select(f => f.Name))
+            : "No food detected";
 
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
-        var root = doc.RootElement;
+        var details = foods.Count > 0
+            ? $"Detected {itemsDetected} item(s). Macros — Fat: {totalFat}g · Carbs: {totalCarbs}g · Protein: {totalProtein}g."
+            : "No food items were detected in the image.";
 
         return new CalorieEstimationResult(
-            root.GetProperty("foodName").GetString() ?? "Unknown",
-            root.GetProperty("estimatedCalories").GetInt32(),
-            root.GetProperty("details").GetString() ?? string.Empty);
+            FoodName:          foodName,
+            EstimatedCalories: (int)Math.Round(totalCalories),
+            Details:           details,
+            TotalFat:          totalFat,
+            TotalCarbs:        totalCarbs,
+            TotalProtein:      totalProtein,
+            ItemsDetected:     itemsDetected,
+            Foods:             foods
+        );
     }
 }

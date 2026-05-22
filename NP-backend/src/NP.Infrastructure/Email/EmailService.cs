@@ -43,7 +43,11 @@ internal sealed class EmailService : IEmailService
         var body     = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("Brevo API error {StatusCode}: {Body} | FromAddress: {From} | ToEmail: {To}",
+                response.StatusCode, body, _options.FromAddress, toEmail);
             throw new Exception($"Brevo API error {response.StatusCode}: {body}");
+        }
 
         _logger.LogInformation("OTP email sent successfully via Brevo API.");
     }
