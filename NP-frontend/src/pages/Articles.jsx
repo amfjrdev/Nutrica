@@ -3,6 +3,7 @@ import { Loader2, BookOpen } from 'lucide-react';
 import TopBanner from '../components/articles/TopBanner';
 import FilterButton from '../components/articles/FilterButton';
 import ArticleCard from '../components/articles/ArticleCard';
+import ArticleModal from '../components/articles/ArticleModal';
 import BottomCTA from '../components/articles/BottomCTA';
 import { getApprovedPosts } from '../services/api';
 
@@ -19,6 +20,7 @@ const ArticlesPage = () => {
   const [error, setError]               = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [visibleCount, setVisibleCount] = useState(6);
+  const [selected, setSelected]         = useState(null);
 
   useEffect(() => {
     getApprovedPosts()
@@ -94,6 +96,7 @@ const ArticlesPage = () => {
                 title={post.title}
                 excerpt={post.content?.slice(0, 120) + (post.content?.length > 120 ? '...' : '')}
                 imageUrl={post.imageUrl}
+                onClick={() => setSelected(post)}
               />
             ))}
           </div>
@@ -118,6 +121,8 @@ const ArticlesPage = () => {
           </div>
         )}
       </main>
+
+      {selected && <ArticleModal post={selected} onClose={() => setSelected(null)} />}
     </>
   );
 };

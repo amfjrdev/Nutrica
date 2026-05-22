@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, BookOpen } from 'lucide-react';
 import FilterButton from '../../components/articles/FilterButton';
 import ArticleCard from '../../components/articles/ArticleCard';
+import ArticleModal from '../../components/articles/ArticleModal';
 import { getApprovedPosts } from '../../services/api';
 
 const FILTERS = ['All', 'Nutritionist', 'Admin'];
@@ -17,6 +18,7 @@ const ClientArticlesPage = () => {
   const [error, setError]               = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [visibleCount, setVisibleCount] = useState(6);
+  const [selected, setSelected]         = useState(null);
 
   useEffect(() => {
     getApprovedPosts()
@@ -84,6 +86,7 @@ const ClientArticlesPage = () => {
               title={post.title}
               excerpt={post.content?.slice(0, 120) + (post.content?.length > 120 ? '...' : '')}
               imageUrl={post.imageUrl}
+              onClick={() => setSelected(post)}
             />
           ))}
         </div>
@@ -100,6 +103,8 @@ const ClientArticlesPage = () => {
           </button>
         </div>
       )}
+
+      {selected && <ArticleModal post={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 };

@@ -1,11 +1,14 @@
 import { Clock, ChevronRight } from 'lucide-react';
 
-const ArticleCard = ({ category, readTime, title, excerpt, imageUrl }) => (
-  <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow duration-300 flex flex-col h-full">
+const ArticleCard = ({ category, readTime, title, excerpt, imageUrl, onClick }) => (
+  <div
+    onClick={onClick}
+    className="bg-white rounded-2xl overflow-hidden border border-slate-200 hover:shadow-lg transition-shadow duration-300 flex flex-col h-full cursor-pointer"
+  >
     {/* Image */}
-    <div className="h-48 bg-emerald-50 w-full relative group cursor-pointer overflow-hidden">
+    <div className="h-48 bg-emerald-50 w-full relative group overflow-hidden">
       {imageUrl
-        ? <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
+        ? <img src={imageUrl} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         : <div className="w-full h-full bg-emerald-50" />}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-emerald-100/50">
         <span className="bg-white px-4 py-2 rounded-full text-sm font-semibold text-emerald-600 shadow-sm">View Article</span>
@@ -26,10 +29,10 @@ const ArticleCard = ({ category, readTime, title, excerpt, imageUrl }) => (
 
       <p className="text-slate-500 text-sm leading-relaxed mb-6 flex-grow">{excerpt}</p>
 
-      <a href="#" className="inline-flex items-center text-emerald-600 font-semibold text-sm hover:text-emerald-700 transition-colors group">
+      <span className="inline-flex items-center text-emerald-600 font-semibold text-sm hover:text-emerald-700 transition-colors group">
         Read Article
         <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-      </a>
+      </span>
     </div>
   </div>
 );
