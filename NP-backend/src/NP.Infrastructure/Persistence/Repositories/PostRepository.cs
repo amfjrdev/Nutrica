@@ -16,4 +16,7 @@ internal sealed class PostRepository : Repository<Post>, IPostRepository
 
     public async Task<List<Post>> GetByAuthorIdAsync(Guid authorId, CancellationToken cancellationToken = default) =>
         await Context.Posts.Where(p => p.AuthorId == authorId).ToListAsync(cancellationToken);
+
+    public async Task<List<Post>> GetAllAsync(CancellationToken cancellationToken = default) =>
+        await Context.Posts.OrderByDescending(p => p.CreatedAt).ToListAsync(cancellationToken);
 }

@@ -13,6 +13,8 @@ public sealed record ApprovePostCommand(Guid PostId) : ICommand;
 
 public sealed record RejectPostCommand(Guid PostId, string Reason) : ICommand;
 
+public sealed record DeletePostCommand(Guid PostId) : ICommand;
+
 // --- Handlers ---
 
 internal sealed class CreatePostCommandHandler : ICommandHandler<CreatePostCommand, Guid>
@@ -80,6 +82,21 @@ internal sealed class RejectPostCommandHandler : ICommandHandler<RejectPostComma
         if (result.IsFailure) return result;
 
         _repo.Update(post);
+        return Result.Success();
+    }
+}
+
+internal sealed class DeletePostCommandHandler : ICommandHandler<DeletePostCommand>
+{
+    private readonly IPostRepository _repo;
+    public DeletePostCommandHandler(IPostRepository repo) => _repo = repo;
+
+    public async Task<Result> HandleAsync(DeletePostCommand command, CancellationToken cancellationToken = default)
+    {
+        var post = await _repo.GetByIdAsync(command.PostId, cancellationToken);
+        if (post is null) return Result.Failure(PostErrors.NotFound);
+
+        _repo.Remove(post);
         return Result.Success();
     }
 }

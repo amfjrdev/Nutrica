@@ -45,6 +45,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
 import AdminSubscriptions from './pages/admin/Subscriptions';
 import AdminApprovals from './pages/admin/Approvals';
+import AdminArticles from './pages/admin/Articles';
 
 const LandingPage = () => (
   <div className="min-h-screen font-sans text-slate-900 bg-white">
@@ -110,6 +111,7 @@ const App = () => {
       <Route path="/admin/users"         element={<ProtectedRoute role="Admin"><AuthLayout role="admin"><AdminUsers /></AuthLayout></ProtectedRoute>} />
       <Route path="/admin/subscriptions" element={<ProtectedRoute role="Admin"><AuthLayout role="admin"><AdminSubscriptions /></AuthLayout></ProtectedRoute>} />
       <Route path="/admin/approvals"     element={<ProtectedRoute role="Admin"><AuthLayout role="admin"><AdminApprovals /></AuthLayout></ProtectedRoute>} />
+      <Route path="/admin/articles"      element={<ProtectedRoute role="Admin"><AuthLayout role="admin"><AdminArticles /></AuthLayout></ProtectedRoute>} />
     </Routes>
   </BrowserRouter>
   );

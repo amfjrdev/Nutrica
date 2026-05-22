@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CreditCard, CheckSquare, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, CheckSquare, BookOpen, LogOut } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { icon: Users,           label: 'Users',         path: '/admin/users' },
   { icon: CreditCard,      label: 'Subscriptions', path: '/admin/subscriptions' },
   { icon: CheckSquare,     label: 'Approvals',     path: '/admin/approvals' },
+  { icon: BookOpen,        label: 'Articles',      path: '/admin/articles' },
 ];
 
 const AdminSidebar = () => {
