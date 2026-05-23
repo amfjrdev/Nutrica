@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IFeedbackRepository, FeedbackRepository>();
+        services.AddScoped<INutritionistRatingRepository, NutritionistRatingRepository>();
 
         // Chat
         services.AddScoped<IChatMessageRepository, ChatMessageRepository>();

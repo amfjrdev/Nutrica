@@ -97,6 +97,23 @@ export const getMyFeedbacksAsNutritionist = async () => {
   return res.json();
 };
 
+// POST /api/feedbacks/nutritionist
+export const rateNutritionist = async (nutritionistId, rating, comment) => {
+  const res = await fetch(`${BASE_URL}/feedbacks/nutritionist`, {
+    method: 'POST', headers: getAuthHeaders(),
+    body: JSON.stringify({ nutritionistId, rating, comment }),
+  });
+  if (!res.ok) throw await res.json();
+  return res.json();
+};
+
+// GET /api/feedbacks/nutritionist/{nutritionistId}/my
+export const getMyNutritionistRating = async (nutritionistId) => {
+  const res = await fetch(`${BASE_URL}/feedbacks/nutritionist/${nutritionistId}/my`, { headers: getAuthHeaders() });
+  if (!res.ok) throw await res.json();
+  return res.json();
+};
+
 // POST /api/ai/chat
 export const aiChat = async (message) => {
   const res = await fetch(`${BASE_URL}/ai/chat`, {

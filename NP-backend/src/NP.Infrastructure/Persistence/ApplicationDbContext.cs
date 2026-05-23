@@ -29,6 +29,7 @@ public sealed class ApplicationDbContext : DbContext
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
+    public DbSet<NutritionistRating> NutritionistRatings => Set<NutritionistRating>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

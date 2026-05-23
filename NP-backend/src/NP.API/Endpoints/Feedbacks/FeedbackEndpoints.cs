@@ -17,6 +17,8 @@ public static class FeedbackEndpoints
         group.MapPost("/", Submit).RequireAuthorization("ClientOnly").WithSummary("Submit feedback for a nutrition plan");
         group.MapGet("/plan/{planId:guid}", GetByPlan).RequireAuthorization().WithSummary("Get feedbacks for a plan");
         group.MapGet("/my", GetMyAsNutritionist).RequireAuthorization("NutritionistOnly").WithSummary("Get all feedbacks on my plans");
+        group.MapPost("/nutritionist", RateNutritionist).RequireAuthorization("ClientOnly").WithSummary("Rate a nutritionist");
+        group.MapGet("/nutritionist/{nutritionistId:guid}/my", GetMyNutritionistRating).RequireAuthorization("ClientOnly").WithSummary("Get my rating for a nutritionist");
         return group;
     }
 
@@ -58,6 +60,36 @@ public static class FeedbackEndpoints
         var result = await handler.HandleAsync(new GetFeedbacksByNutritionistQuery(nutritionist.Id), cancellationToken);
         return result.IsFailure ? result.Error.ToProblem() : TypedResults.Ok(result.Value);
     }
+    private static async Task<Results<Ok<Guid>, ProblemHttpResult>> RateNutritionist(
+        [FromBody] RateNutritionistRequest request,
+        ICommandHandler<RateNutritionistCommand, Guid> handler,
+        IUserContext userContext,
+        IClientRepository clientRepository,
+        CancellationToken cancellationToken)
+    {
+        var client = await clientRepository.GetByUserIdAsync(userContext.UserId, cancellationToken);
+        if (client is null) return TypedResults.Problem(title: "Not Found", detail: "Client not found.", statusCode: 404);
+
+        var result = await handler.HandleAsync(
+            new RateNutritionistCommand(client.Id, request.NutritionistId, request.Rating, request.Comment),
+            cancellationToken);
+        return result.IsFailure ? result.Error.ToProblem() : TypedResults.Ok(result.Value);
+    }
+
+    private static async Task<Results<Ok<NutritionistRatingDto?>, ProblemHttpResult>> GetMyNutritionistRating(
+        Guid nutritionistId,
+        IQueryHandler<GetMyNutritionistRatingQuery, NutritionistRatingDto?> handler,
+        IUserContext userContext,
+        IClientRepository clientRepository,
+        CancellationToken cancellationToken)
+    {
+        var client = await clientRepository.GetByUserIdAsync(userContext.UserId, cancellationToken);
+        if (client is null) return TypedResults.Problem(title: "Not Found", detail: "Client not found.", statusCode: 404);
+
+        var result = await handler.HandleAsync(new GetMyNutritionistRatingQuery(client.Id, nutritionistId), cancellationToken);
+        return result.IsFailure ? result.Error.ToProblem() : TypedResults.Ok(result.Value);
+    }
 }
 
 public sealed record SubmitFeedbackRequest(Guid NutritionPlanId, string Comment, int Rating);
+public sealed record RateNutritionistRequest(Guid NutritionistId, int Rating, string Comment);

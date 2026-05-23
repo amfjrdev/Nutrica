@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
   Star, Users, Clock, Flame, Trophy, Target, ArrowLeft,
-  CheckCircle2, Loader2, Utensils, ChevronRight
+  CheckCircle2, Loader2, Utensils, ChevronRight, UserCheck
 } from 'lucide-react';
-import { getMyPlansAsClient, submitFeedback, getFeedbacksByPlan } from '../services/api';
+import { getMyPlansAsClient, submitFeedback, getFeedbacksByPlan, rateNutritionist, getMyNutritionistRating } from '../services/api';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -140,6 +140,13 @@ const PlanDetail = ({ plan, onBack }) => {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackMsg, setFeedbackMsg]         = useState('');
 
+  // Nutritionist rating
+  const [existingNutRating, setExistingNutRating] = useState(null);
+  const [nutRating, setNutRating]                 = useState(0);
+  const [nutComment, setNutComment]               = useState('');
+  const [nutLoading, setNutLoading]               = useState(false);
+  const [nutMsg, setNutMsg]                       = useState('');
+
   const parsed    = parsePlanContent(plan.content);
   const mealsForDay = parsed.type === 'structured' ? (parsed.data[activeDay] || []) : [];
 
@@ -148,7 +155,12 @@ const PlanDetail = ({ plan, onBack }) => {
       .then((fb) => {
         if (fb.length > 0) { setExistingFeedback(fb[0]); setUserRating(fb[0].rating); setComment(fb[0].comment); }
       }).catch(() => {});
-  }, [plan.id]);
+
+    if (plan.nutritionistId)
+      getMyNutritionistRating(plan.nutritionistId)
+        .then((r) => { if (r) { setExistingNutRating(r); setNutRating(r.rating); setNutComment(r.comment); } })
+        .catch(() => {});
+  }, [plan.id, plan.nutritionistId]);
 
   const handleFeedback = async (e) => {
     e.preventDefault();
@@ -161,6 +173,19 @@ const PlanDetail = ({ plan, onBack }) => {
     } catch (err) {
       setFeedbackMsg(err?.detail || 'Failed to submit feedback.');
     } finally { setFeedbackLoading(false); }
+  };
+
+  const handleNutRating = async (e) => {
+    e.preventDefault();
+    if (!nutRating) return setNutMsg('Please select a rating.');
+    setNutLoading(true); setNutMsg('');
+    try {
+      await rateNutritionist(plan.nutritionistId, nutRating, nutComment);
+      setNutMsg('Rating submitted!');
+      setExistingNutRating({ rating: nutRating, comment: nutComment });
+    } catch (err) {
+      setNutMsg(err?.detail || err?.title || 'Failed to submit rating.');
+    } finally { setNutLoading(false); }
   };
 
   return (
@@ -295,6 +320,40 @@ const PlanDetail = ({ plan, onBack }) => {
                 className="mt-3 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-2">
                 {feedbackLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                 Submit Feedback
+              </button>
+            )}
+          </form>
+        </div>
+      )}
+
+      {/* Rate the nutritionist — only for non-predefined approved plans */}
+      {!plan.isPredefined && plan.status === 'Approved' && plan.nutritionistId && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-emerald-500" /> Rate Your Nutritionist
+          </h2>
+          <p className="text-slate-500 text-sm mb-5">How would you rate your nutritionist's support and guidance?</p>
+
+          {nutMsg && (
+            <div className={`mb-4 p-3 rounded-xl text-sm ${nutMsg.includes('submitted') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+              {nutMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleNutRating}>
+            <StarRating rating={nutRating} onRate={setNutRating} disabled={!!existingNutRating} />
+            <textarea
+              value={nutComment} onChange={(e) => setNutComment(e.target.value)}
+              disabled={!!existingNutRating}
+              placeholder="Share your experience with your nutritionist..."
+              rows={3}
+              className="mt-4 w-full px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none disabled:bg-slate-50 disabled:cursor-not-allowed"
+            />
+            {!existingNutRating && (
+              <button type="submit" disabled={nutLoading}
+                className="mt-3 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-2">
+                {nutLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Submit Rating
               </button>
             )}
           </form>
