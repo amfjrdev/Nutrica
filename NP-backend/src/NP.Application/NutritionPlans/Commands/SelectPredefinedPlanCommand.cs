@@ -1,5 +1,6 @@
 using NP.Application.Abstractions.Messaging;
 using NP.Domain.Abstractions;
+using NP.Domain.Subscriptions;
 using NP.Domain.Subscriptions.Repositories;
 
 namespace NP.Application.NutritionPlans.Commands;
@@ -15,8 +16,8 @@ internal sealed class SelectPredefinedPlanCommandHandler : ICommandHandler<Selec
 
     public async Task<Result> HandleAsync(SelectPredefinedPlanCommand command, CancellationToken cancellationToken = default)
     {
-        var sub = await _subscriptionRepo.GetActiveByClientIdAsync(command.ClientId, cancellationToken);
-        if (sub is null) return Result.Failure(new Error("Subscription.NotFound", "No active subscription found."));
+        var sub = await _subscriptionRepo.GetActiveByClientIdAndTypeAsync(command.ClientId, SubscriptionType.Predefined, cancellationToken);
+        if (sub is null) return Result.Failure(new Error("Subscription.NotFound", "No active Predefined subscription found."));
 
         var result = sub.SelectPredefinedPlan(command.PlanId);
         if (result.IsFailure) return result;

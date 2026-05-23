@@ -14,9 +14,21 @@ internal sealed class SubscriptionRepository : Repository<Subscription>, ISubscr
                 s.Status == SubscriptionStatus.Active &&
                 s.ExpiresAt > DateTime.UtcNow, cancellationToken);
 
+    public async Task<Subscription?> GetActiveByClientIdAndTypeAsync(Guid clientId, SubscriptionType type, CancellationToken cancellationToken = default) =>
+        await Context.Subscriptions
+            .FirstOrDefaultAsync(s => s.ClientId == clientId && s.Type == type &&
+                s.Status == SubscriptionStatus.Active &&
+                s.ExpiresAt > DateTime.UtcNow, cancellationToken);
+
     public async Task<Subscription?> GetPendingByClientIdAsync(Guid clientId, CancellationToken cancellationToken = default) =>
         await Context.Subscriptions
             .FirstOrDefaultAsync(s => s.ClientId == clientId &&
+                s.Status == SubscriptionStatus.PendingApproval &&
+                s.ExpiresAt > DateTime.UtcNow, cancellationToken);
+
+    public async Task<Subscription?> GetPendingByClientIdAndTypeAsync(Guid clientId, SubscriptionType type, CancellationToken cancellationToken = default) =>
+        await Context.Subscriptions
+            .FirstOrDefaultAsync(s => s.ClientId == clientId && s.Type == type &&
                 s.Status == SubscriptionStatus.PendingApproval &&
                 s.ExpiresAt > DateTime.UtcNow, cancellationToken);
 

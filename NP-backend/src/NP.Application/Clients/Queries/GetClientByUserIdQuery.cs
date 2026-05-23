@@ -2,6 +2,7 @@ using NP.Application.Abstractions.Messaging;
 using NP.Domain.Abstractions;
 using NP.Domain.Clients;
 using NP.Domain.Clients.Repositories;
+using NP.Domain.Subscriptions;
 using NP.Domain.Subscriptions.Repositories;
 
 namespace NP.Application.Clients.Queries;
@@ -13,11 +14,14 @@ public sealed record ClientDto(Guid Id, Guid UserId, string? Goal, string? Activ
 public sealed record ClientAccessDto(
     bool HasActiveSubscription,
     bool HasPendingSubscription,
-    string? SubscriptionType,       // "Predefined" | "Personalized" | "AI" | null
-    Guid? SubscriptionId,           // used as chat room ID for Personalized plan
-    Guid? NutritionPlanId,          // set for Plan A — unlocks only that plan page
-    Guid? NutritionistId,           // assigned nutritionist for Personalized plan
-    bool QuestionnaireCompleted
+    string? SubscriptionType,
+    Guid? SubscriptionId,
+    Guid? NutritionPlanId,
+    Guid? NutritionistId,
+    bool QuestionnaireCompleted,
+    bool HasPredefined,
+    bool HasPersonalized,
+    bool HasAI
 );
 
 public sealed record GetClientAccessQuery(Guid UserId) : IQuery<ClientAccessDto>;
@@ -38,19 +42,28 @@ internal sealed class GetClientAccessQueryHandler : IQueryHandler<GetClientAcces
         var client = await _clientRepository.GetByUserIdAsync(query.UserId, cancellationToken);
         if (client is null) return Result.Failure<ClientAccessDto>(ClientErrors.NotFound);
 
-        var activeSub  = await _subscriptionRepository.GetActiveByClientIdAsync(client.Id, cancellationToken);
-        var pendingSub = await _subscriptionRepository.GetPendingByClientIdAsync(client.Id, cancellationToken);
+        // Check each type independently so a Personalized client can also have Predefined/AI
+        var predefinedSub   = await _subscriptionRepository.GetActiveByClientIdAndTypeAsync(client.Id, SubscriptionType.Predefined,   cancellationToken)
+                           ?? await _subscriptionRepository.GetPendingByClientIdAndTypeAsync(client.Id, SubscriptionType.Predefined,   cancellationToken);
+        var personalizedSub = await _subscriptionRepository.GetActiveByClientIdAndTypeAsync(client.Id, SubscriptionType.Personalized, cancellationToken)
+                           ?? await _subscriptionRepository.GetPendingByClientIdAndTypeAsync(client.Id, SubscriptionType.Personalized, cancellationToken);
+        var aiSub           = await _subscriptionRepository.GetActiveByClientIdAndTypeAsync(client.Id, SubscriptionType.AI,           cancellationToken)
+                           ?? await _subscriptionRepository.GetPendingByClientIdAndTypeAsync(client.Id, SubscriptionType.AI,           cancellationToken);
 
-        var sub = activeSub ?? pendingSub;
+        // Primary sub for backward-compat fields: prefer Personalized > Predefined > AI
+        var primarySub = personalizedSub ?? predefinedSub ?? aiSub;
 
         return Result.Success(new ClientAccessDto(
-            HasActiveSubscription:  activeSub is not null,
-            HasPendingSubscription: pendingSub is not null,
-            SubscriptionType:       sub?.Type.ToString(),
-            SubscriptionId:         sub?.Id,
-            NutritionPlanId:        sub?.NutritionPlanId,
-            NutritionistId:         sub?.NutritionistId,
-            QuestionnaireCompleted: client.QuestionnaireCompleted
+            HasActiveSubscription:  primarySub?.Status == SubscriptionStatus.Active,
+            HasPendingSubscription: primarySub?.Status == SubscriptionStatus.PendingApproval,
+            SubscriptionType:       predefinedSub?.Type.ToString() ?? personalizedSub?.Type.ToString() ?? aiSub?.Type.ToString(),
+            SubscriptionId:         primarySub?.Id,
+            NutritionPlanId:        predefinedSub?.NutritionPlanId ?? personalizedSub?.NutritionPlanId,
+            NutritionistId:         personalizedSub?.NutritionistId,
+            QuestionnaireCompleted: client.QuestionnaireCompleted,
+            HasPredefined:          predefinedSub?.Status == SubscriptionStatus.Active,
+            HasPersonalized:        personalizedSub?.Status == SubscriptionStatus.Active,
+            HasAI:                  aiSub?.Status == SubscriptionStatus.Active
         ));
     }
 }

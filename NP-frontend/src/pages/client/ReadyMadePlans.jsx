@@ -185,7 +185,7 @@ const ReadyMadePlans = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const hasPredefined  = access?.hasActiveSubscription && access?.subscriptionType === 'Predefined';
+  const hasPredefined  = access?.hasPredefined === true;
   const unlockedPlanId = access?.nutritionPlanId ?? null;
 
   // Called when user confirms in the modal
