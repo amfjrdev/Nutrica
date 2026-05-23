@@ -29,6 +29,7 @@ import ClientArticles from './pages/client/Articles';
 import ClientPricing from './pages/client/Pricing';
 import Questionnaire from './pages/client/Questionnaire';
 import ClientAppointments from './pages/client/Appointments';
+import ReadyMadePlans from './pages/client/ReadyMadePlans';
 
 // Nutritionist pages
 import NutritionistDashboard from './pages/nutritionist/Dashboard';
@@ -87,6 +88,7 @@ const App = () => {
       <Route path="/questionnaire" element={<ProtectedRoute role="Client"><QuestionnaireGuard><Questionnaire /></QuestionnaireGuard></ProtectedRoute>} />
       <Route path="/client/pricing"  element={<ProtectedRoute role="Client"><AuthLayout role="client"><ClientPricing /></AuthLayout></ProtectedRoute>} />
       <Route path="/client/articles" element={<ProtectedRoute role="Client"><AuthLayout role="client"><ClientArticles /></AuthLayout></ProtectedRoute>} />
+      <Route path="/client/ready-made-plans" element={<ProtectedRoute role="Client"><AuthLayout role="client"><ReadyMadePlans /></AuthLayout></ProtectedRoute>} />
       <Route path="/payment"         element={<ProtectedRoute role="Client"><PaymentPage /></ProtectedRoute>} />
       <Route path="/dashboard"    element={<ProtectedRoute role="Client"><AuthLayout role="client"><Dashboard /></AuthLayout></ProtectedRoute>} />
       <Route path="/my-plan"      element={<ProtectedRoute role="Client"><AuthLayout role="client"><MyPlan /></AuthLayout></ProtectedRoute>} />

@@ -19,6 +19,7 @@ public static class NutritionPlanEndpoints
         group.MapGet("/my", GetMy).RequireAuthorization("NutritionistOnly").WithSummary("Get my nutrition plans (Nutritionist)");
         group.MapGet("/client/my", GetMyAsClient).RequireAuthorization("ClientOnly").WithSummary("Get my nutrition plans (Client)");
         group.MapGet("/predefined", GetPredefined).RequireAuthorization().WithSummary("Get predefined plans");
+        group.MapPut("/{id:guid}/select", SelectPredefined).RequireAuthorization("ClientOnly").WithSummary("Select a predefined plan");
         group.MapGet("/pending", GetPending).RequireAuthorization("AdminOnly").WithSummary("Get pending plans for approval");
         group.MapPut("/{id:guid}/approve", Approve).RequireAuthorization("AdminOnly").WithSummary("Approve a nutrition plan");
         group.MapPut("/{id:guid}/reject", Reject).RequireAuthorization("AdminOnly").WithSummary("Reject a nutrition plan");
@@ -89,6 +90,20 @@ public static class NutritionPlanEndpoints
         ICommandHandler<RejectNutritionPlanCommand> handler, CancellationToken cancellationToken)
     {
         var result = await handler.HandleAsync(new RejectNutritionPlanCommand(id, request.Reason), cancellationToken);
+        return result.IsFailure ? result.Error.ToProblem() : TypedResults.NoContent();
+    }
+
+    private static async Task<Results<NoContent, ProblemHttpResult>> SelectPredefined(
+        Guid id,
+        ICommandHandler<SelectPredefinedPlanCommand> handler,
+        IUserContext userContext,
+        IClientRepository clientRepository,
+        CancellationToken cancellationToken)
+    {
+        var client = await clientRepository.GetByUserIdAsync(userContext.UserId, cancellationToken);
+        if (client is null) return TypedResults.Problem(title: "Not Found", detail: "Client not found.", statusCode: 404);
+
+        var result = await handler.HandleAsync(new SelectPredefinedPlanCommand(client.Id, id), cancellationToken);
         return result.IsFailure ? result.Error.ToProblem() : TypedResults.NoContent();
     }
 

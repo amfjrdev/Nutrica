@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LayoutDashboard, Utensils, MessageSquare, Camera, BookOpen, User, LogOut, MessageCircle, CreditCard, Lock, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Utensils, MessageSquare, Camera, BookOpen, User, LogOut, MessageCircle, CreditCard, Lock, CalendarDays, Library } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getClientAccess } from '../services/api';
@@ -14,9 +14,10 @@ const PLAN_UNLOCKS = {
 
 // key = unique id used for unlock logic, path = route
 const NAV_ITEMS = [
-  { key: 'dashboard',    icon: LayoutDashboard, label: 'Dashboard',    path: '/dashboard',          alwaysVisible: true },
-  { key: 'pricing',      icon: CreditCard,      label: 'Pricing',      path: '/client/pricing',     alwaysVisible: true },
-  { key: 'profile',      icon: User,            label: 'Profile',      path: '/profile',            alwaysVisible: true },
+  { key: 'dashboard',       icon: LayoutDashboard, label: 'Dashboard',       path: '/dashboard',               alwaysVisible: true },
+  { key: 'pricing',         icon: CreditCard,      label: 'Pricing',         path: '/client/pricing',          alwaysVisible: true },
+  { key: 'ready-made-plans',icon: Library,         label: 'Ready-Made Plans',path: '/client/ready-made-plans', alwaysVisible: true },
+  { key: 'profile',         icon: User,            label: 'Profile',         path: '/profile',                 alwaysVisible: true },
   { key: 'my-plan',      icon: Utensils,        label: 'My Plan',      path: '/my-plan',            alwaysVisible: false },
   { key: 'ai-assistant', icon: MessageSquare,   label: 'AI Assistant', path: '/ai-assistant',       alwaysVisible: false },
   { key: 'chat',         icon: MessageCircle,   label: 'Chat',         path: '/chat',               alwaysVisible: false },

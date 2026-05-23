@@ -64,4 +64,14 @@ public sealed class Subscription : Entity
         if (NutritionistId is null)
             NutritionistId = nutritionistId;
     }
+
+    public Result SelectPredefinedPlan(Guid planId)
+    {
+        if (Type != SubscriptionType.Predefined)
+            return Result.Failure(new Error("Subscription.NotPredefined", "Only Predefined subscriptions can select a plan."));
+        if (Status != SubscriptionStatus.Active)
+            return Result.Failure(SubscriptionErrors.NotActive);
+        NutritionPlanId = planId;
+        return Result.Success();
+    }
 }

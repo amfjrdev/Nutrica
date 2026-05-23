@@ -72,6 +72,19 @@ export const getMyPlansAsClient = async () => {
   return res.json(); 
 };
 
+// GET /api/nutrition-plans/predefined
+export const getPredefinedPlans = async () => {
+  const res = await fetch(`${BASE_URL}/nutrition-plans/predefined`, { headers: getAuthHeaders() });
+  if (!res.ok) throw await res.json();
+  return res.json();
+};
+
+// PUT /api/nutrition-plans/{id}/select
+export const selectPredefinedPlan = async (planId) => {
+  const res = await fetch(`${BASE_URL}/nutrition-plans/${planId}/select`, { method: 'PUT', headers: getAuthHeaders() });
+  if (!res.ok) throw await res.json();
+};
+
 // POST /api/feedbacks
 export const submitFeedback = async (nutritionPlanId, comment, rating) => {
   const res = await fetch(`${BASE_URL}/feedbacks`, {
