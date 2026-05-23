@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CreditCard, Calendar, CheckCircle, Loader2, FlaskConical } from 'lucide-react';
 import PlanOption from '../components/payment/PlanOption';
 import InputField from '../components/payment/InputField';
-import { initiatePayment, mockPayment } from '../services/api';
+import { initiatePayment, mockPayment, selectPredefinedPlan } from '../services/api';
 
 const IS_DEV_PAYMENT = import.meta.env.VITE_DEV_MODE_PAYMENT === 'true';
 
@@ -40,6 +40,7 @@ const PaymentPage = () => {
   const navigate       = useNavigate();
 
   const initialPlan = PLANS[searchParams.get('plan')] ? searchParams.get('plan') : 'personalized';
+  const returnPlanId = searchParams.get('returnPlanId') ?? null;
   const [selectedPlan, setSelectedPlan] = useState(initialPlan);
   const [form, setForm]   = useState({ cardNumber: '', expiry: '', cvc: '', name: '' });
   const [loading, setLoading] = useState(false);
@@ -61,27 +62,23 @@ const PaymentPage = () => {
 
     try {
       if (IS_DEV_PAYMENT) {
-        await mockPayment({
-          subscriptionType: plan.type,
-          amount:           plan.amount,
-          currency:         'usd',
-        });
-        const dest = selectedPlan === 'personalized'
-          ? '/questionnaire?from=payment'
-          : '/dashboard?payment=pending&mode=test';
-        navigate(dest);
+        await mockPayment({ subscriptionType: plan.type, amount: plan.amount, currency: 'usd' });
+        if (returnPlanId && selectedPlan === 'predefined') {
+          try { await selectPredefinedPlan(returnPlanId); } catch (_) {}
+          navigate('/my-plan');
+        } else {
+          const dest = selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending&mode=test';
+          navigate(dest);
+        }
       } else {
-        await initiatePayment({
-          nutritionistId:   null,
-          nutritionPlanId:  null,
-          subscriptionType: plan.type,
-          amount:           plan.amount,
-          currency:         'usd',
-        });
-        const dest = selectedPlan === 'personalized'
-          ? '/questionnaire?from=payment'
-          : '/dashboard?payment=pending';
-        navigate(dest);
+        await initiatePayment({ nutritionistId: null, nutritionPlanId: null, subscriptionType: plan.type, amount: plan.amount, currency: 'usd' });
+        if (returnPlanId && selectedPlan === 'predefined') {
+          try { await selectPredefinedPlan(returnPlanId); } catch (_) {}
+          navigate('/my-plan');
+        } else {
+          const dest = selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending';
+          navigate(dest);
+        }
       }
     } catch (err) {
       setError(err?.detail || err?.title || 'Payment failed. Please try again.');
