@@ -61,10 +61,8 @@ const PlanDetail = ({ plan, meta, onBack, isUnlocked, hasPredefined, unlockedPla
   const [activeDay, setActiveDay] = useState('Mon');
   const meals = parsedContent?.[activeDay] ?? [];
 
-  // Show blur overlay if:
-  // 1. User doesn't have a subscription at all
-  // 2. User has a subscription but has already unlocked a DIFFERENT plan
-  const showOverlay = !isUnlocked && (!hasPredefined || unlockedPlanId !== null);
+  // Show blur overlay ONLY if the user doesn't have a subscription at all
+  const showOverlay = !hasPredefined;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -155,12 +153,12 @@ const PlanDetail = ({ plan, meta, onBack, isUnlocked, hasPredefined, unlockedPla
           <pre className="whitespace-pre-wrap text-sm text-slate-700 bg-slate-50 p-4 rounded-xl">{plan.content}</pre>
         )}
 
-        {hasPredefined && !unlockedPlanId && (
-          <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center">
+        {hasPredefined && !isUnlocked && (
+          <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center animate-in fade-in duration-200">
             <button onClick={onSelect} disabled={selecting}
               className="flex items-center gap-2 px-8 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-bold rounded-xl transition-all shadow-md shadow-emerald-500/20 transform hover:-translate-y-0.5">
               {selecting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Unlock className="w-5 h-5" />}
-              Select & Unlock This Plan
+              {unlockedPlanId ? 'Switch to This Plan' : 'Select & Unlock This Plan'}
             </button>
           </div>
         )}
@@ -322,7 +320,7 @@ const ReadyMadePlans = () => {
           {plans.map((plan) => {
             const meta       = getMeta(plan.title);
             const isUnlocked = unlockedPlanId === plan.id;
-            const canSelect  = !unlockedPlanId; // anyone can try to select — modal handles subscription check
+            const canSelect  = hasPredefined || !unlockedPlanId; // anyone can try to select — modal handles subscription check
 
             return (
               <div key={plan.id}
