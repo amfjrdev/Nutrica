@@ -29,7 +29,7 @@ const NutritionistSidebar = () => {
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col fixed h-full z-10">
-      <Link to="/" className="p-6 flex items-center border-b border-slate-100">
+      <Link to="/nutritionist/dashboard" className="p-6 flex items-center border-b border-slate-100">
         <img src={logo} alt="NutriCA" className="h-8 w-auto" />
       </Link>
 
