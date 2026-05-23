@@ -57,7 +57,7 @@ public static class PaymentEndpoints
             return TypedResults.Problem(title: "Not Found", detail: "Client not found.", statusCode: 404);
 
         var result = await handler.HandleAsync(
-            new MockPaymentCommand(client.Id, request.SubscriptionType, request.Amount, request.Currency),
+            new MockPaymentCommand(client.Id, request.SubscriptionType, request.Amount, request.Currency, request.NutritionPlanId),
             cancellationToken);
 
         return result.IsFailure ? result.Error.ToProblem() : TypedResults.Ok(result.Value);
@@ -145,4 +145,4 @@ public static class PaymentEndpoints
 }
 
 public sealed record InitiatePaymentRequest(Guid? NutritionistId, Guid? NutritionPlanId, string SubscriptionType, decimal Amount, string Currency);
-public sealed record MockPaymentRequest(string SubscriptionType, decimal Amount, string Currency);
+public sealed record MockPaymentRequest(string SubscriptionType, decimal Amount, string Currency, Guid? NutritionPlanId = null);

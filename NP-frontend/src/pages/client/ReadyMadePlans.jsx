@@ -4,7 +4,7 @@ import {
   Loader2, CheckCircle2, ChevronRight, Utensils, ArrowLeft
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getPredefinedPlans, getClientAccess, selectPredefinedPlan } from '../../services/api';
+import { getPredefinedPlans, getClientAccess } from '../../services/api';
 
 const PLAN_META = {
   'Weight Loss Essentials':   { goal: 'Weight Loss',    duration: '8 weeks',  calories: '1,500–1,800 cal/day', difficulty: 'Beginner',     diffColor: 'bg-green-100 text-green-700',  tags: ['Calorie Deficit', 'Balanced', 'Easy to Follow'] },
@@ -18,34 +18,28 @@ const DEFAULT_META = { goal: 'General Health', duration: '8 weeks', calories: 'B
 const getMeta = (title) => PLAN_META[title] ?? DEFAULT_META;
 
 // ── Confirm modal ─────────────────────────────────────────────────────────────
-const ConfirmModal = ({ plan, onConfirm, onCancel, loading, needsSubscription }) => (
+const ConfirmModal = ({ plan, onConfirm, onCancel, loading }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center border border-slate-100">
       <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
         <Unlock className="w-6 h-6 text-emerald-600" />
       </div>
-      <h3 className="font-bold text-slate-900 text-center mb-2">Unlock This Plan?</h3>
-      <p className="text-sm text-slate-500 text-center mb-1">
-        You are about to unlock <span className="font-semibold text-slate-700">"{plan.title}"</span>.
+      <h3 className="font-bold text-slate-900 mb-2">Buy This Plan?</h3>
+      <p className="text-sm text-slate-500 mb-2">
+        You are about to purchase the <span className="font-semibold text-slate-700">"{plan.title}"</span>.
       </p>
-      {needsSubscription ? (
-        <p className="text-xs text-amber-600 text-center mb-6 bg-amber-50 rounded-xl px-3 py-2">
-          You need a Ready-Made subscription ($29/mo) to unlock this plan. You will be redirected to payment.
-        </p>
-      ) : (
-        <p className="text-xs text-amber-600 text-center mb-6 bg-amber-50 rounded-xl px-3 py-2">
-          ⚠️ This is your one-time selection. You cannot change it later.
-        </p>
-      )}
+      <p className="text-xs text-amber-600 mb-6 bg-amber-50 rounded-xl px-3 py-2 border border-amber-100">
+        This plan costs $29/month. You will be redirected to our secure Stripe checkout.
+      </p>
       <div className="flex gap-3">
         <button onClick={onCancel}
           className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
           Cancel
         </button>
         <button onClick={onConfirm} disabled={loading}
-          className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">
+          className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {needsSubscription ? 'Go to Payment' : 'Unlock Plan'}
+          Go to Checkout
         </button>
       </div>
     </div>
@@ -53,7 +47,7 @@ const ConfirmModal = ({ plan, onConfirm, onCancel, loading, needsSubscription })
 );
 
 // ── Plan detail view ──────────────────────────────────────────────────────────
-const PlanDetail = ({ plan, meta, onBack, isUnlocked, hasPredefined, unlockedPlanId, unlockedPlanTitle, onSelect, selecting }) => {
+const PlanDetail = ({ plan, meta, onBack, isUnlocked, isPending, onSelect, selecting }) => {
   const parsedContent = (() => {
     try { const p = JSON.parse(plan.content); return typeof p === 'object' ? p : null; } catch { return null; }
   })();
@@ -61,11 +55,10 @@ const PlanDetail = ({ plan, meta, onBack, isUnlocked, hasPredefined, unlockedPla
   const [activeDay, setActiveDay] = useState('Mon');
   const meals = parsedContent?.[activeDay] ?? [];
 
-  // Show blur overlay ONLY if the user doesn't have a subscription at all
-  const showOverlay = !hasPredefined;
+  const showOverlay = !isUnlocked;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
       <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-emerald-600 text-sm font-medium transition-colors">
         <ArrowLeft className="w-4 h-4" /> Back to Plans
       </button>
@@ -153,37 +146,29 @@ const PlanDetail = ({ plan, meta, onBack, isUnlocked, hasPredefined, unlockedPla
           <pre className="whitespace-pre-wrap text-sm text-slate-700 bg-slate-50 p-4 rounded-xl">{plan.content}</pre>
         )}
 
-        {hasPredefined && !isUnlocked && (
-          <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center animate-in fade-in duration-200">
-            <button onClick={onSelect} disabled={selecting}
-              className="flex items-center gap-2 px-8 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-bold rounded-xl transition-all shadow-md shadow-emerald-500/20 transform hover:-translate-y-0.5">
-              {selecting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Unlock className="w-5 h-5" />}
-              {unlockedPlanId ? 'Switch to This Plan' : 'Select & Unlock This Plan'}
-            </button>
-          </div>
-        )}
-
         {showOverlay && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl">
             <Lock className="w-10 h-10 text-slate-400 mb-3" />
             <p className="font-semibold text-slate-700 mb-1">Plan Locked</p>
             
-            {!hasPredefined ? (
+            {isPending ? (
               <>
-                <p className="text-sm text-slate-500 mb-4 text-center px-8">Subscribe to unlock the full meal schedule</p>
-                <button onClick={onSelect} disabled={selecting}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors">
-                  Subscribe to Unlock
+                <p className="text-sm text-slate-500 mb-4 text-center px-8 bg-amber-50 text-amber-700 py-2 rounded-xl border border-amber-100">
+                  ⚠️ Your payment for this plan is pending approval.
+                </p>
+                <button onClick={onBack}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-slate-500 hover:bg-slate-600 text-white font-semibold rounded-xl transition-colors">
+                  Back to Plans
                 </button>
               </>
             ) : (
               <>
                 <p className="text-sm text-slate-500 mb-4 text-center px-8">
-                  You have already unlocked another plan ("{unlockedPlanTitle}").
+                  Unlock this predefined plan individually for $29/month to view the full meal schedule.
                 </p>
-                <button onClick={onBack}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-slate-500 hover:bg-slate-600 text-white font-semibold rounded-xl transition-colors">
-                  Back to Plans
+                <button onClick={onSelect} disabled={selecting}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors">
+                  Buy Plan ($29/mo)
                 </button>
               </>
             )}
@@ -212,30 +197,14 @@ const ReadyMadePlans = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const hasPredefined  = access?.hasPredefined === true;
-  const unlockedPlanId = access?.nutritionPlanId ?? null;
+  const unlockedPlanIds = access?.unlockedPlanIds ?? [];
+  const pendingPlanIds  = access?.pendingPlanIds ?? [];
 
   // Called when user confirms in the modal
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     if (!toConfirm) return;
-
-    // No active Predefined subscription → go to payment, carry planId so it auto-selects after
-    if (!hasPredefined) {
-      navigate(`/payment?plan=predefined&returnPlanId=${toConfirm.id}`);
-      return;
-    }
-
-    // Has subscription → select the plan directly
-    setSelecting(true); setError('');
-    try {
-      await selectPredefinedPlan(toConfirm.id);
-      setAccess(prev => ({ ...prev, nutritionPlanId: toConfirm.id }));
-      setToConfirm(null);
-      navigate('/my-plan');
-    } catch (err) {
-      setError(err?.detail || err?.title || 'Failed to select plan.');
-      setToConfirm(null);
-    } finally { setSelecting(false); }
+    navigate(`/payment?plan=predefined&returnPlanId=${toConfirm.id}`);
+    setToConfirm(null);
   };
 
   if (loading) return (
@@ -244,17 +213,16 @@ const ReadyMadePlans = () => {
 
   if (selected) {
     const meta = getMeta(selected.title);
-    const isUnlocked = unlockedPlanId === selected.id;
+    const isUnlocked = unlockedPlanIds.includes(selected.id);
+    const isPending = pendingPlanIds.includes(selected.id);
     return (
       <>
-        {toConfirm && <ConfirmModal plan={toConfirm} needsSubscription={!hasPredefined} onConfirm={handleConfirm} onCancel={() => setToConfirm(null)} loading={selecting} />}
+        {toConfirm && <ConfirmModal plan={toConfirm} onConfirm={handleConfirm} onCancel={() => setToConfirm(null)} loading={selecting} />}
         <PlanDetail
           plan={selected}
           meta={meta}
           isUnlocked={isUnlocked}
-          hasPredefined={hasPredefined}
-          unlockedPlanId={unlockedPlanId}
-          unlockedPlanTitle={plans.find(p => p.id === unlockedPlanId)?.title}
+          isPending={isPending}
           onBack={() => setSelected(null)}
           onSelect={() => setToConfirm(selected)}
           selecting={selecting}
@@ -265,48 +233,22 @@ const ReadyMadePlans = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {toConfirm && <ConfirmModal plan={toConfirm} needsSubscription={!hasPredefined} onConfirm={handleConfirm} onCancel={() => setToConfirm(null)} loading={selecting} />}
+      {toConfirm && <ConfirmModal plan={toConfirm} onConfirm={handleConfirm} onCancel={() => setToConfirm(null)} loading={selecting} />}
 
       <header className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Ready-Made Plans</h1>
-        <p className="text-slate-500 mt-1">Expert-designed nutrition plans — unlock one with your subscription</p>
+        <p className="text-slate-500 mt-1">Expert-designed nutrition plans — unlock individual plans to view their meal schedules</p>
       </header>
 
-      {!hasPredefined && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-amber-800">Plans are locked</p>
-              <p className="text-sm text-amber-700 mt-0.5">Click any plan and select it — you'll be taken to payment to subscribe ($29/mo).</p>
-            </div>
-          </div>
-          <button onClick={() => navigate('/payment?plan=predefined')}
-            className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl text-sm transition-colors">
-            Subscribe Now <ChevronRight className="w-4 h-4" />
-          </button>
+      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-8 flex items-start gap-3">
+        <Unlock className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold text-emerald-800">Unlock Individual Plans</p>
+          <p className="text-sm text-emerald-700 mt-0.5">
+            Each Ready-Made plan costs <strong>$29/month</strong> individually. Buy as many plans as you want, and all your purchased plans will remain unlocked simultaneously!
+          </p>
         </div>
-      )}
-
-      {hasPredefined && !unlockedPlanId && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-8 flex items-start gap-3">
-          <Unlock className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-emerald-800">Choose your plan</p>
-            <p className="text-sm text-emerald-700 mt-0.5">You can unlock <strong>one plan</strong> of your choice. This selection is permanent.</p>
-          </div>
-        </div>
-      )}
-
-      {hasPredefined && unlockedPlanId && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-8 flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-emerald-800">Plan unlocked!</p>
-            <p className="text-sm text-emerald-700 mt-0.5">Your selected plan is active. Visit <button onClick={() => navigate('/my-plan')} className="underline font-medium">My Plans</button> to view it.</p>
-          </div>
-        </div>
-      )}
+      </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-xl mb-6">{error}</div>}
 
@@ -319,19 +261,18 @@ const ReadyMadePlans = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {plans.map((plan) => {
             const meta       = getMeta(plan.title);
-            const isUnlocked = unlockedPlanId === plan.id;
-            const canSelect  = hasPredefined || !unlockedPlanId; // anyone can try to select — modal handles subscription check
+            const isUnlocked = unlockedPlanIds.includes(plan.id);
+            const isPending  = pendingPlanIds.includes(plan.id);
 
             return (
               <div key={plan.id}
                 className={`bg-white rounded-2xl border p-6 flex flex-col transition-all relative
-                  ${isUnlocked ? 'border-emerald-300 shadow-md' : 'border-slate-200 hover:shadow-md hover:border-slate-300'}`}>
+                  ${isUnlocked ? 'border-emerald-300 shadow-md animate-in fade-in' : 'border-slate-200 hover:shadow-md hover:border-slate-300'}`}>
 
                 <div className="absolute top-4 right-4">
-                  {isUnlocked
-                    ? <span className="flex items-center gap-1 bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full"><CheckCircle2 className="w-3 h-3" /> Unlocked</span>
-                    : <span className="flex items-center gap-1 bg-slate-100 text-slate-500 text-xs font-semibold px-2.5 py-1 rounded-full"><Lock className="w-3 h-3" /> Locked</span>
-                  }
+                  {isUnlocked && <span className="flex items-center gap-1 bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-full"><CheckCircle2 className="w-3 h-3" /> Unlocked</span>}
+                  {isPending && <span className="flex items-center gap-1 bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full"><Clock className="w-3 h-3" /> Pending</span>}
+                  {!isUnlocked && !isPending && <span className="flex items-center gap-1 bg-slate-100 text-slate-500 text-xs font-semibold px-2.5 py-1 rounded-full"><Lock className="w-3 h-3" /> Locked</span>}
                 </div>
 
                 <h3 className="text-base font-bold text-slate-900 mb-2 pr-20">{plan.title}</h3>
@@ -369,16 +310,22 @@ const ReadyMadePlans = () => {
                     className="flex-1 py-2.5 border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-600 text-sm font-medium rounded-xl transition-colors">
                     View Details
                   </button>
-                  {canSelect && !isUnlocked && (
-                    <button onClick={() => setToConfirm(plan)}
-                      className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5">
-                      <Unlock className="w-3.5 h-3.5" /> Select
-                    </button>
-                  )}
                   {isUnlocked && (
                     <button onClick={() => navigate('/my-plan')}
                       className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5">
                       <ChevronRight className="w-3.5 h-3.5" /> View Plan
+                    </button>
+                  )}
+                  {isPending && (
+                    <button disabled
+                      className="flex-1 py-2.5 bg-slate-100 text-slate-400 text-sm font-semibold rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-200">
+                      <Clock className="w-3.5 h-3.5" /> Pending
+                    </button>
+                  )}
+                  {!isUnlocked && !isPending && (
+                    <button onClick={() => setToConfirm(plan)}
+                      className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5">
+                      <Unlock className="w-3.5 h-3.5" /> Buy ($29)
                     </button>
                   )}
                 </div>

@@ -21,7 +21,9 @@ public sealed record ClientAccessDto(
     bool QuestionnaireCompleted,
     bool HasPredefined,
     bool HasPersonalized,
-    bool HasAI
+    bool HasAI,
+    List<Guid> UnlockedPlanIds,
+    List<Guid> PendingPlanIds
 );
 
 public sealed record GetClientAccessQuery(Guid UserId) : IQuery<ClientAccessDto>;
@@ -42,16 +44,34 @@ internal sealed class GetClientAccessQueryHandler : IQueryHandler<GetClientAcces
         var client = await _clientRepository.GetByUserIdAsync(query.UserId, cancellationToken);
         if (client is null) return Result.Failure<ClientAccessDto>(ClientErrors.NotFound);
 
-        // Check each type independently so a Personalized client can also have Predefined/AI
-        var predefinedSub   = await _subscriptionRepository.GetActiveByClientIdAndTypeAsync(client.Id, SubscriptionType.Predefined,   cancellationToken)
-                           ?? await _subscriptionRepository.GetPendingByClientIdAndTypeAsync(client.Id, SubscriptionType.Predefined,   cancellationToken);
-        var personalizedSub = await _subscriptionRepository.GetActiveByClientIdAndTypeAsync(client.Id, SubscriptionType.Personalized, cancellationToken)
-                           ?? await _subscriptionRepository.GetPendingByClientIdAndTypeAsync(client.Id, SubscriptionType.Personalized, cancellationToken);
-        var aiSub           = await _subscriptionRepository.GetActiveByClientIdAndTypeAsync(client.Id, SubscriptionType.AI,           cancellationToken)
-                           ?? await _subscriptionRepository.GetPendingByClientIdAndTypeAsync(client.Id, SubscriptionType.AI,           cancellationToken);
+        // Fetch all client subscriptions to gather multiple predefined plans
+        var clientSubs = await _subscriptionRepository.GetByClientIdAsync(client.Id, cancellationToken);
+
+        var activeOrPendingSubs = clientSubs
+            .Where(s => s.ExpiresAt > DateTime.UtcNow && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.PendingApproval))
+            .ToList();
+
+        var predefinedSubs   = activeOrPendingSubs.Where(s => s.Type == SubscriptionType.Predefined).ToList();
+        var personalizedSub  = activeOrPendingSubs.FirstOrDefault(s => s.Type == SubscriptionType.Personalized);
+        var aiSub            = activeOrPendingSubs.FirstOrDefault(s => s.Type == SubscriptionType.AI);
+
+        var predefinedSub = predefinedSubs.FirstOrDefault(s => s.Status == SubscriptionStatus.Active)
+                         ?? predefinedSubs.FirstOrDefault();
 
         // Primary sub for backward-compat fields: prefer Personalized > Predefined > AI
         var primarySub = personalizedSub ?? predefinedSub ?? aiSub;
+
+        // Gather all active unlocked predefined plan IDs
+        var unlockedPlanIds = predefinedSubs
+            .Where(s => s.Status == SubscriptionStatus.Active && s.NutritionPlanId.HasValue)
+            .Select(s => s.NutritionPlanId!.Value)
+            .ToList();
+
+        // Gather all pending predefined plan IDs
+        var pendingPlanIds = predefinedSubs
+            .Where(s => s.Status == SubscriptionStatus.PendingApproval && s.NutritionPlanId.HasValue)
+            .Select(s => s.NutritionPlanId!.Value)
+            .ToList();
 
         return Result.Success(new ClientAccessDto(
             HasActiveSubscription:  primarySub?.Status == SubscriptionStatus.Active,
@@ -61,9 +81,11 @@ internal sealed class GetClientAccessQueryHandler : IQueryHandler<GetClientAcces
             NutritionPlanId:        predefinedSub?.NutritionPlanId ?? personalizedSub?.NutritionPlanId,
             NutritionistId:         personalizedSub?.NutritionistId,
             QuestionnaireCompleted: client.QuestionnaireCompleted,
-            HasPredefined:          predefinedSub?.Status == SubscriptionStatus.Active,
+            HasPredefined:          predefinedSubs.Any(s => s.Status == SubscriptionStatus.Active),
             HasPersonalized:        personalizedSub?.Status == SubscriptionStatus.Active,
-            HasAI:                  aiSub?.Status == SubscriptionStatus.Active
+            HasAI:                  aiSub?.Status == SubscriptionStatus.Active,
+            UnlockedPlanIds:        unlockedPlanIds,
+            PendingPlanIds:         pendingPlanIds
         ));
     }
 }

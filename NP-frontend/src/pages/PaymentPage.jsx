@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CreditCard, Calendar, CheckCircle, Loader2, FlaskConical } from 'lucide-react';
 import PlanOption from '../components/payment/PlanOption';
 import InputField from '../components/payment/InputField';
-import { initiatePayment, mockPayment, selectPredefinedPlan } from '../services/api';
+import { initiatePayment, mockPayment } from '../services/api';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
@@ -111,14 +111,15 @@ const PaymentPage = () => {
 
     try {
       if (IS_DEV_PAYMENT) {
-        await mockPayment({ subscriptionType: plan.type, amount: plan.amount, currency: 'usd' });
+        await mockPayment({
+          subscriptionType: plan.type,
+          amount: plan.amount,
+          currency: 'usd',
+          nutritionPlanId: selectedPlan === 'predefined' ? returnPlanId : null
+        });
         const dest = (returnPlanId && selectedPlan === 'predefined')
           ? '/my-plan'
           : (selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending&mode=test');
-        
-        if (returnPlanId && selectedPlan === 'predefined') {
-          try { await selectPredefinedPlan(returnPlanId); } catch (_) {}
-        }
         
         setSuccessDetails({ planTitle: plan.title, amount: plan.amount, dest });
       } else {
@@ -126,7 +127,7 @@ const PaymentPage = () => {
         // 1. Create PaymentIntent in backend
         const initResult = await initiatePayment({
           nutritionistId: null,
-          nutritionPlanId: null,
+          nutritionPlanId: selectedPlan === 'predefined' ? returnPlanId : null,
           subscriptionType: plan.type,
           amount: plan.amount,
           currency: 'usd'
@@ -156,10 +157,6 @@ const PaymentPage = () => {
           const dest = (returnPlanId && selectedPlan === 'predefined')
             ? '/my-plan'
             : (selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending');
-          
-          if (returnPlanId && selectedPlan === 'predefined') {
-            try { await selectPredefinedPlan(returnPlanId); } catch (_) {}
-          }
           
           setSuccessDetails({ planTitle: plan.title, amount: plan.amount, dest });
         } else {

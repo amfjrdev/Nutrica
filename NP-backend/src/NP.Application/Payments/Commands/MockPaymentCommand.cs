@@ -11,7 +11,8 @@ public sealed record MockPaymentCommand(
     Guid ClientId,
     string SubscriptionType,
     decimal Amount,
-    string Currency
+    string Currency,
+    Guid? NutritionPlanId = null
 ) : ICommand<Guid>;
 
 internal sealed class MockPaymentCommandHandler : ICommandHandler<MockPaymentCommand, Guid>
@@ -38,7 +39,7 @@ internal sealed class MockPaymentCommandHandler : ICommandHandler<MockPaymentCom
 
         // Subscription starts as PendingApproval — no features are unlocked until
         // an admin approves the payment via PUT /api/payments/{id}/approve.
-        var subResult = Subscription.Create(command.ClientId, null, null, subType, startsAt, expiresAt);
+        var subResult = Subscription.Create(command.ClientId, null, command.NutritionPlanId, subType, startsAt, expiresAt);
         if (subResult.IsFailure) return Result.Failure<Guid>(subResult.Error);
 
         await _subscriptionRepository.AddAsync(subResult.Value, cancellationToken);
