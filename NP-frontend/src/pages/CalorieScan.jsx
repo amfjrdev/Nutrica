@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Camera, Upload, X, Loader2, Flame, Beef, Wheat, Droplets, Trash2 } from 'lucide-react';
+import { Camera, Upload, X, Loader2, Flame, Beef, Wheat, Droplets, Trash2, Pencil, Check } from 'lucide-react';
 import { estimateCalories } from '../services/api';
 
 const TIPS = [
@@ -37,13 +37,15 @@ const saveHistory = (entries) =>
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
 
 const CalorieScanPage = () => {
-  const [preview, setPreview] = useState(null);
-  const [file, setFile]       = useState(null);
-  const [result, setResult]   = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-  const [history, setHistory] = useState(loadHistory);
-  const fileInputRef          = useRef(null);
+  const [preview, setPreview]       = useState(null);
+  const [file, setFile]             = useState(null);
+  const [result, setResult]         = useState(null);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState('');
+  const [history, setHistory]       = useState(loadHistory);
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editVal, setEditVal]       = useState('');
+  const fileInputRef                = useRef(null);
 
   const handleFile = (f) => {
     if (!f) return;
@@ -77,6 +79,7 @@ const CalorieScanPage = () => {
         itemsDetected:     data.itemsDetected,
         foods:             data.foods,
         details:           data.details,
+        segmentedImage:    data.segmentedImage,
         time:              new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date:              new Date().toLocaleDateString(),
         preview,
@@ -92,6 +95,19 @@ const CalorieScanPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveCalorie = (idx) => {
+    const val = parseFloat(editVal);
+    if (isNaN(val) || val < 0) return;
+    setResult(prev => {
+      const foods = prev.foods.map((f, i) =>
+        i === idx ? { ...f, calories: val } : f
+      );
+      const newTotal = foods.reduce((s, f) => s + (f.calories || 0), 0);
+      return { ...prev, foods, estimatedCalories: Math.round(newTotal) };
+    });
+    setEditingIdx(null);
   };
 
   const handleClear = () => {
@@ -203,6 +219,18 @@ const CalorieScanPage = () => {
                 </div>
               </div>
 
+              {/* Segmented image */}
+              {result.segmentedImage && (
+                <div className="rounded-xl overflow-hidden border border-slate-200">
+                  <p className="text-xs font-semibold text-slate-500 px-3 py-2 bg-slate-50 border-b border-slate-100">Detection Result</p>
+                  <img
+                    src={`data:image/jpeg;base64,${result.segmentedImage}`}
+                    alt="Segmented food"
+                    className="w-full object-cover"
+                  />
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-3">
                 <MacroBadge icon={Beef}     label="Protein" value={result.totalProtein?.toFixed(1) ?? 0} color="bg-blue-50 text-blue-700" />
                 <MacroBadge icon={Wheat}    label="Carbs"   value={result.totalCarbs?.toFixed(1)   ?? 0} color="bg-amber-50 text-amber-700" />
@@ -224,9 +252,35 @@ const CalorieScanPage = () => {
                             </p>
                           </div>
                         </div>
-                        <div className="text-right ml-4 flex-shrink-0">
-                          <p className="font-bold text-slate-900 text-sm">{food.calories?.toFixed(0)} kcal</p>
-                          <p className="text-xs text-slate-400">{(food.confidence * 100).toFixed(0)}% conf.</p>
+                        <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                          {editingIdx === idx ? (
+                            <>
+                              <input
+                                type="number"
+                                value={editVal}
+                                onChange={e => setEditVal(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleSaveCalorie(idx)}
+                                className="w-20 text-sm border border-emerald-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                                autoFocus
+                              />
+                              <button onClick={() => handleSaveCalorie(idx)}
+                                className="w-7 h-7 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg flex items-center justify-center">
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-right">
+                                <p className="font-bold text-slate-900 text-sm">{food.calories?.toFixed(0)} kcal</p>
+                                <p className="text-xs text-slate-400">{(food.confidence * 100).toFixed(0)}% conf.</p>
+                              </div>
+                              <button
+                                onClick={() => { setEditingIdx(idx); setEditVal(food.calories?.toFixed(0) ?? '0'); }}
+                                className="w-7 h-7 bg-slate-100 hover:bg-emerald-100 rounded-lg flex items-center justify-center transition-colors">
+                                <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}

@@ -10,6 +10,7 @@ Health check : http://localhost:8000/health
 
 from __future__ import annotations
 
+import base64
 import csv
 import io
 import os
@@ -26,7 +27,7 @@ from ultralytics import YOLO
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR   = Path(__file__).parent
-MODEL_PATH = BASE_DIR / "bestfinale1.pt"
+MODEL_PATH = BASE_DIR / "best.pt"
 CSV_INGR   = BASE_DIR / "nutrition5k_dataset_metadata_ingredients_metadata.csv"
 CSV_CAFE1  = BASE_DIR / "nutrition5k_dataset_metadata_dish_metadata_cafe1.csv"
 CSV_CAFE2  = BASE_DIR / "nutrition5k_dataset_metadata_dish_metadata_cafe2.csv"
@@ -252,14 +253,15 @@ class FoodItem(BaseModel):
 
 
 class PredictResponse(BaseModel):
-    success:         bool           = Field(..., example=True)
-    image_size:      List[int]      = Field(..., example=[512, 341])
-    items_detected:  int            = Field(..., example=2)
-    total_calories:  float          = Field(..., example=320.5)
-    total_fat_g:     float          = Field(..., example=4.2)
-    total_carbs_g:   float          = Field(..., example=68.1)
-    total_protein_g: float          = Field(..., example=5.8)
-    foods:           List[FoodItem]
+    success:          bool           = Field(..., example=True)
+    image_size:       List[int]      = Field(..., example=[512, 341])
+    items_detected:   int            = Field(..., example=2)
+    total_calories:   float          = Field(..., example=320.5)
+    total_fat_g:      float          = Field(..., example=4.2)
+    total_carbs_g:    float          = Field(..., example=68.1)
+    total_protein_g:  float          = Field(..., example=5.8)
+    foods:            List[FoodItem]
+    segmented_image:  Optional[str]  = Field(None, description="Base64-encoded JPEG of the segmented image")
     nutrition_source: str = Field(
         default="Nutrition5k Dataset (Google Research) + curated fallback",
         example="Nutrition5k Dataset (Google Research) + curated fallback",
@@ -457,6 +459,7 @@ async def predict(
             total_carbs_g=0.0,
             total_protein_g=0.0,
             foods=[],
+            segmented_image=None,
         )
 
     foods: List[FoodItem] = []
@@ -494,6 +497,18 @@ async def predict(
             source=nutrition.get("source", "nutrition5k"),
         ))
 
+    # Generate segmented image with bounding boxes
+    seg_b64 = None
+    try:
+        annotated = results[0].plot()  # numpy array (BGR)
+        annotated_rgb = annotated[:, :, ::-1]  # BGR → RGB
+        seg_pil = Image.fromarray(annotated_rgb)
+        buf = io.BytesIO()
+        seg_pil.save(buf, format="JPEG", quality=85)
+        seg_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+    except Exception:
+        seg_b64 = None
+
     return PredictResponse(
         success=True,
         image_size=[img_w, img_h],
@@ -503,4 +518,5 @@ async def predict(
         total_carbs_g=round(total_carbs, 1),
         total_protein_g=round(total_prot, 1),
         foods=foods,
+        segmented_image=seg_b64,
     )
