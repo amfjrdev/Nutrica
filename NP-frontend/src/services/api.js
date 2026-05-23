@@ -90,6 +90,13 @@ export const getFeedbacksByPlan = async (planId) => {
   return res.json(); 
 };
 
+// GET /api/feedbacks/my (NutritionistOnly)
+export const getMyFeedbacksAsNutritionist = async () => {
+  const res = await fetch(`${BASE_URL}/feedbacks/my`, { headers: getAuthHeaders() });
+  if (!res.ok) throw await res.json();
+  return res.json();
+};
+
 // POST /api/ai/chat
 export const aiChat = async (message) => {
   const res = await fetch(`${BASE_URL}/ai/chat`, {

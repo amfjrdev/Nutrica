@@ -6,6 +6,7 @@ using NP.Application.Abstractions.Messaging;
 using NP.Application.Feedbacks.Commands;
 using NP.Application.Feedbacks.Queries;
 using NP.Domain.Clients.Repositories;
+using NP.Domain.Nutritionists.Repositories;
 
 namespace NP.API.Endpoints.Feedbacks;
 
@@ -15,6 +16,7 @@ public static class FeedbackEndpoints
     {
         group.MapPost("/", Submit).RequireAuthorization("ClientOnly").WithSummary("Submit feedback for a nutrition plan");
         group.MapGet("/plan/{planId:guid}", GetByPlan).RequireAuthorization().WithSummary("Get feedbacks for a plan");
+        group.MapGet("/my", GetMyAsNutritionist).RequireAuthorization("NutritionistOnly").WithSummary("Get all feedbacks on my plans");
         return group;
     }
 
@@ -41,6 +43,19 @@ public static class FeedbackEndpoints
         CancellationToken cancellationToken)
     {
         var result = await handler.HandleAsync(new GetFeedbacksByPlanQuery(planId), cancellationToken);
+        return result.IsFailure ? result.Error.ToProblem() : TypedResults.Ok(result.Value);
+    }
+
+    private static async Task<Results<Ok<List<FeedbackDto>>, ProblemHttpResult>> GetMyAsNutritionist(
+        IQueryHandler<GetFeedbacksByNutritionistQuery, List<FeedbackDto>> handler,
+        IUserContext userContext,
+        INutritionistRepository nutritionistRepository,
+        CancellationToken cancellationToken)
+    {
+        var nutritionist = await nutritionistRepository.GetByUserIdAsync(userContext.UserId, cancellationToken);
+        if (nutritionist is null) return TypedResults.Problem(title: "Not Found", detail: "Nutritionist not found.", statusCode: 404);
+
+        var result = await handler.HandleAsync(new GetFeedbacksByNutritionistQuery(nutritionist.Id), cancellationToken);
         return result.IsFailure ? result.Error.ToProblem() : TypedResults.Ok(result.Value);
     }
 }

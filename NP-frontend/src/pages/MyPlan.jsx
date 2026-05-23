@@ -223,7 +223,8 @@ const MyPlan = () => {
                 )}
               </div>
 
-              {/* Rate Your Plan */}
+              {/* Rate Your Plan — only for personalized/AI plans (not predefined) */}
+              {!activePlan.isPredefined && activePlan.status === 'Approved' && (
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-900 mb-1">Rate Your Plan</h3>
                 <p className="text-slate-500 text-sm mb-6">How satisfied are you with this nutrition plan?</p>
@@ -254,6 +255,7 @@ const MyPlan = () => {
                   )}
                 </form>
               </div>
+              )}
             </>
           )}
     </div>
