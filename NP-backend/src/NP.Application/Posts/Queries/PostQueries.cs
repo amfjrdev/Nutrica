@@ -9,12 +9,6 @@ public sealed record PostDto(Guid Id, Guid AuthorId, string AuthorRole, string T
 
 public sealed record GetApprovedPostsQuery : IQuery<List<PostDto>>;
 
-public sealed record GetPendingPostsQuery : IQuery<List<PostDto>>;
-
-public sealed record GetAllPostsQuery : IQuery<List<PostDto>>;
-
-public sealed record GetPostsByAuthorQuery(Guid AuthorId) : IQuery<List<PostDto>>;
-
 internal static class PostMapper
 {
     public static PostDto ToDto(Post p) =>
@@ -29,42 +23,6 @@ internal sealed class GetApprovedPostsQueryHandler : IQueryHandler<GetApprovedPo
     public async Task<Result<List<PostDto>>> HandleAsync(GetApprovedPostsQuery query, CancellationToken cancellationToken = default)
     {
         var list = await _repo.GetApprovedAsync(cancellationToken);
-        return Result.Success(list.Select(PostMapper.ToDto).ToList());
-    }
-}
-
-internal sealed class GetAllPostsQueryHandler : IQueryHandler<GetAllPostsQuery, List<PostDto>>
-{
-    private readonly IPostRepository _repo;
-    public GetAllPostsQueryHandler(IPostRepository repo) => _repo = repo;
-
-    public async Task<Result<List<PostDto>>> HandleAsync(GetAllPostsQuery query, CancellationToken cancellationToken = default)
-    {
-        var list = await _repo.GetAllAsync(cancellationToken);
-        return Result.Success(list.Select(PostMapper.ToDto).ToList());
-    }
-}
-
-internal sealed class GetPendingPostsQueryHandler : IQueryHandler<GetPendingPostsQuery, List<PostDto>>
-{
-    private readonly IPostRepository _repo;
-    public GetPendingPostsQueryHandler(IPostRepository repo) => _repo = repo;
-
-    public async Task<Result<List<PostDto>>> HandleAsync(GetPendingPostsQuery query, CancellationToken cancellationToken = default)
-    {
-        var list = await _repo.GetPendingAsync(cancellationToken);
-        return Result.Success(list.Select(PostMapper.ToDto).ToList());
-    }
-}
-
-internal sealed class GetPostsByAuthorQueryHandler : IQueryHandler<GetPostsByAuthorQuery, List<PostDto>>
-{
-    private readonly IPostRepository _repo;
-    public GetPostsByAuthorQueryHandler(IPostRepository repo) => _repo = repo;
-
-    public async Task<Result<List<PostDto>>> HandleAsync(GetPostsByAuthorQuery query, CancellationToken cancellationToken = default)
-    {
-        var list = await _repo.GetByAuthorIdAsync(query.AuthorId, cancellationToken);
         return Result.Success(list.Select(PostMapper.ToDto).ToList());
     }
 }

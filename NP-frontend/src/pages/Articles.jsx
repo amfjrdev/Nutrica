@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Loader2, BookOpen } from 'lucide-react';
 import TopBanner from '../components/articles/TopBanner';
-import FilterButton from '../components/articles/FilterButton';
 import ArticleCard from '../components/articles/ArticleCard';
 import ArticleModal from '../components/articles/ArticleModal';
 import BottomCTA from '../components/articles/BottomCTA';
 import { getApprovedPosts } from '../services/api';
-
-const FILTERS = ['All', 'Nutritionist', 'Admin'];
 
 const readTime = (content) => {
   const words = content?.split(' ').length || 0;
@@ -18,7 +15,6 @@ const ArticlesPage = () => {
   const [posts, setPosts]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState('');
-  const [activeFilter, setActiveFilter] = useState('All');
   const [visibleCount, setVisibleCount] = useState(6);
   const [selected, setSelected]         = useState(null);
 
@@ -29,19 +25,14 @@ const ArticlesPage = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = activeFilter === 'All'
-    ? posts
-    : posts.filter((p) => p.authorRole === activeFilter);
-
-  const visible = filtered.slice(0, visibleCount);
-  const hasMore = visibleCount < filtered.length;
+  const visible = posts.slice(0, visibleCount);
+  const hasMore = visibleCount < posts.length;
 
   return (
     <>
       <TopBanner />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
             Nutrition Articles
@@ -51,41 +42,25 @@ const ArticlesPage = () => {
           </p>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap justify-center gap-3 mb-16">
-          {FILTERS.map((filter) => (
-            <FilterButton
-              key={filter}
-              label={filter}
-              active={activeFilter === filter}
-              onClick={() => { setActiveFilter(filter); setVisibleCount(6); }}
-            />
-          ))}
-        </div>
-
-        {/* Loading */}
         {loading && (
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
           </div>
         )}
 
-        {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-xl mb-6 text-center">
             {error}
           </div>
         )}
 
-        {/* Empty */}
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !error && posts.length === 0 && (
           <div className="text-center py-20 text-slate-400">
             <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-40" />
             <p className="text-lg font-medium">No articles found</p>
           </div>
         )}
 
-        {/* Article Grid */}
         {!loading && visible.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
             {visible.map((post) => (
@@ -102,7 +77,6 @@ const ArticlesPage = () => {
           </div>
         )}
 
-        {/* Load More */}
         {!loading && hasMore && (
           <div className="flex justify-center mb-20">
             <button
@@ -114,7 +88,6 @@ const ArticlesPage = () => {
           </div>
         )}
 
-        {/* Bottom CTA */}
         {!loading && (
           <div className="border-t border-slate-200 pt-10">
             <BottomCTA />

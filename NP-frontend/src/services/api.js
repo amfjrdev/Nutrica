@@ -419,20 +419,6 @@ export const rejectPlan = async (id, reason) => {
   if (!res.ok) throw await res.json();
 };
 
-// GET /api/posts/pending (AdminOnly)
-export const getPendingPosts = async () => {
-  const res = await fetch(`${BASE_URL}/posts/pending`, { headers: getAuthHeaders() });
-  if (!res.ok) throw await res.json();
-  return res.json(); // PostDto[]
-};
-
-// GET /api/posts/all (AdminOnly)
-export const getAllPosts = async () => {
-  const res = await fetch(`${BASE_URL}/posts/all`, { headers: getAuthHeaders() });
-  if (!res.ok) throw await res.json();
-  return res.json(); // PostDto[]
-};
-
 // DELETE /api/posts/{id} (AdminOnly)
 export const deletePost = async (id) => {
   const res = await fetch(`${BASE_URL}/posts/${id}`, { method: 'DELETE', headers: getAuthHeaders() });

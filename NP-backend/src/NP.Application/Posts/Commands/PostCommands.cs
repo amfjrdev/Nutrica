@@ -8,15 +8,11 @@ namespace NP.Application.Posts.Commands;
 
 public sealed record CreatePostCommand(Guid AuthorId, string AuthorRole, string Title, string Content, string? ImageUrl) : ICommand<Guid>;
 
-public sealed record EditPostCommand(Guid PostId, string Title, string Content, string? ImageUrl) : ICommand;
-
 public sealed record ApprovePostCommand(Guid PostId) : ICommand;
 
 public sealed record RejectPostCommand(Guid PostId, string Reason) : ICommand;
 
 public sealed record DeletePostCommand(Guid PostId) : ICommand;
-
-// --- Handlers ---
 
 internal sealed class CreatePostCommandHandler : ICommandHandler<CreatePostCommand, Guid>
 {
@@ -41,24 +37,6 @@ internal sealed class CreatePostCommandHandler : ICommandHandler<CreatePostComma
             $"A {command.AuthorRole} submitted a new article '{command.Title}' for approval.", cancellationToken);
 
         return Result.Success(result.Value.Id);
-    }
-}
-
-internal sealed class EditPostCommandHandler : ICommandHandler<EditPostCommand>
-{
-    private readonly IPostRepository _repo;
-    public EditPostCommandHandler(IPostRepository repo) => _repo = repo;
-
-    public async Task<Result> HandleAsync(EditPostCommand command, CancellationToken cancellationToken = default)
-    {
-        var post = await _repo.GetByIdAsync(command.PostId, cancellationToken);
-        if (post is null) return Result.Failure(PostErrors.NotFound);
-
-        var result = post.Edit(command.Title, command.Content, command.ImageUrl);
-        if (result.IsFailure) return result;
-
-        _repo.Update(post);
-        return Result.Success();
     }
 }
 

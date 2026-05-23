@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader2, BookOpen, Trash2, Eye, Search, Filter } from 'lucide-react';
-import { getAllPosts, deletePost } from '../../services/api';
+import { getApprovedPosts, deletePost } from '../../services/api';
 import ArticleModal from '../../components/articles/ArticleModal';
 
 const STATUS_COLOR = {
@@ -47,7 +47,7 @@ const AdminArticles = () => {
   const [error, setError]         = useState('');
 
   useEffect(() => {
-    getAllPosts()
+    getApprovedPosts()
       .then(setPosts)
       .catch(() => setError('Failed to load articles.'))
       .finally(() => setLoading(false));

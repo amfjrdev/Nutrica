@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Loader2, BookOpen } from 'lucide-react';
-import FilterButton from '../../components/articles/FilterButton';
 import ArticleCard from '../../components/articles/ArticleCard';
 import ArticleModal from '../../components/articles/ArticleModal';
 import { getApprovedPosts } from '../../services/api';
-
-const FILTERS = ['All', 'Nutritionist', 'Admin'];
 
 const readTime = (content) => {
   const words = content?.split(' ').length || 0;
@@ -16,7 +13,6 @@ const ClientArticlesPage = () => {
   const [posts, setPosts]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState('');
-  const [activeFilter, setActiveFilter] = useState('All');
   const [visibleCount, setVisibleCount] = useState(6);
   const [selected, setSelected]         = useState(null);
 
@@ -27,12 +23,8 @@ const ClientArticlesPage = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = activeFilter === 'All'
-    ? posts
-    : posts.filter((p) => p.authorRole === activeFilter);
-
-  const visible = filtered.slice(0, visibleCount);
-  const hasMore = visibleCount < filtered.length;
+  const visible = posts.slice(0, visibleCount);
+  const hasMore = visibleCount < posts.length;
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -41,41 +33,25 @@ const ClientArticlesPage = () => {
         <p className="text-slate-500 mt-2">Expert advice and insights for your wellness journey</p>
       </header>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-8">
-        {FILTERS.map((filter) => (
-          <FilterButton
-            key={filter}
-            label={filter}
-            active={activeFilter === filter}
-            onClick={() => { setActiveFilter(filter); setVisibleCount(6); }}
-          />
-        ))}
-      </div>
-
-      {/* Loading */}
       {loading && (
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-4 rounded-xl mb-6">
           {error}
         </div>
       )}
 
-      {/* Empty */}
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && !error && posts.length === 0 && (
         <div className="text-center py-20 text-slate-400">
           <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-40" />
           <p className="text-lg font-medium">No articles found</p>
         </div>
       )}
 
-      {/* Grid */}
       {!loading && visible.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {visible.map((post) => (
@@ -92,7 +68,6 @@ const ClientArticlesPage = () => {
         </div>
       )}
 
-      {/* Load More */}
       {!loading && hasMore && (
         <div className="flex justify-center">
           <button
