@@ -7,8 +7,6 @@ import {
   getAllUsers, getAllSubscriptions, getAllPayments,
   getPendingPlans, getPendingPosts,
 } from '../../services/api';
-import { useNotifications } from '../../hooks/useNotifications';
-import NotificationPanel from '../../components/NotificationPanel';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -252,8 +250,6 @@ const AdminDashboard = () => {
   const [subSegments, setSubSegments] = useState([]);
   const [subTotal, setSubTotal]     = useState(0);
   const [paymentBars, setPaymentBars] = useState([]);
-  const { notifications, loading: nLoading, unreadCount, markRead, markAllRead } = useNotifications();
-
   useEffect(() => {
     Promise.all([
       getAllUsers(),
@@ -397,13 +393,6 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <NotificationPanel
-        notifications={notifications}
-        loading={nLoading}
-        unreadCount={unreadCount}
-        markRead={markRead}
-        markAllRead={markAllRead}
-      />
     </div>
   );
 };

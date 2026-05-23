@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Eye, Users, Loader2, X } from 'lucide-react';
 import { getNutritionistClients, getClientQuestionnaire, getNutritionistAppointments, getMyPlansAsNutritionist } from '../../services/api';
-import { useNotifications } from '../../hooks/useNotifications';
-import NotificationPanel from '../../components/NotificationPanel';
 
 const StatCard = ({ label, value, highlight = false }) => (
   <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -69,7 +67,6 @@ const NutritionistDashboard = () => {
   const [loading, setLoading]           = useState(true);
   const [searchQuery, setSearchQuery]   = useState('');
   const [selectedClient, setSelectedClient] = useState(null);
-  const { notifications, loading: nLoading, unreadCount, markRead, markAllRead } = useNotifications();
 
   useEffect(() => {
     Promise.all([
@@ -163,14 +160,6 @@ const NutritionistDashboard = () => {
             )}
           </div>
 
-          <div className="mt-8">
-            <NotificationPanel
-              notifications={notifications}
-              loading={nLoading}
-              unreadCount={unreadCount}
-              markRead={markRead}
-              markAllRead={markAllRead}
-            />
           </div>
     </div>
   );

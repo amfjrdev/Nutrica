@@ -6,8 +6,6 @@ import {
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getClientProfile, getMyPlansAsClient, getMyPayments } from '../services/api';
-import { useNotifications } from '../hooks/useNotifications';
-import NotificationPanel from '../components/NotificationPanel';
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -281,7 +279,6 @@ const Dashboard = () => {
 
   const showPendingBanner = searchParams.get('payment') === 'pending';
   const isTestMode        = searchParams.get('mode')    === 'test';
-  const { notifications, loading: nLoading, unreadCount, markRead, markAllRead } = useNotifications();
 
   useEffect(() => {
     getClientProfile().then(setClient).catch(console.error);
@@ -492,14 +489,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="mt-8">
-        <NotificationPanel
-          notifications={notifications}
-          loading={nLoading}
-          unreadCount={unreadCount}
-          markRead={markRead}
-          markAllRead={markAllRead}
-        />
       </div>
     </div>
   );
