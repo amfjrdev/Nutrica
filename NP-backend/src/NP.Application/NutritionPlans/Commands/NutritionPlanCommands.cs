@@ -35,10 +35,16 @@ internal sealed class CreateNutritionPlanCommandHandler : ICommandHandler<Create
         await _repo.AddAsync(result.Value, cancellationToken);
 
         // Notify admins that a new plan was submitted for approval
-        var nutritionistUserId = await _dispatcher.GetNutritionistUserIdAsync(command.NutritionistId, cancellationToken);
         await _dispatcher.ClientActedAsync(null,
             "New Nutrition Plan Submitted",
             $"A nutritionist submitted a new plan '{command.Title}' for approval.", cancellationToken);
+
+        // Also notify the nutritionist that their plan was submitted successfully
+        var nutritionistUserId = await _dispatcher.GetNutritionistUserIdAsync(command.NutritionistId, cancellationToken);
+        if (nutritionistUserId.HasValue)
+            await _dispatcher.NutritionistUpdatedAsync(nutritionistUserId.Value,
+                "Plan Submitted for Approval",
+                $"Your plan '{command.Title}' has been submitted and is awaiting admin approval.", cancellationToken);
 
         return Result.Success(result.Value.Id);
     }
