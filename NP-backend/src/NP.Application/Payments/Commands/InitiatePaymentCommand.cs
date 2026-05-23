@@ -38,16 +38,12 @@ internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePa
 
     public async Task<Result<InitiatePaymentResult>> HandleAsync(InitiatePaymentCommand command, CancellationToken cancellationToken = default)
     {
-        var existing = await _subscriptionRepository.GetActiveByClientIdAsync(command.ClientId, cancellationToken);
-        if (existing is not null)
-            return Result.Failure<InitiatePaymentResult>(SubscriptionErrors.AlreadyActive);
-
-        var pendingExisting = await _subscriptionRepository.GetPendingByClientIdAsync(command.ClientId, cancellationToken);
-        if (pendingExisting is not null)
-            return Result.Failure<InitiatePaymentResult>(SubscriptionErrors.AlreadyActive);
-
         if (!Enum.TryParse<SubscriptionType>(command.SubscriptionType, out var subType))
             return Result.Failure<InitiatePaymentResult>(new Error("Subscription.InvalidType", "Invalid subscription type."));
+
+        var duplicate = await _subscriptionRepository.HasActiveOrPendingByTypeAsync(command.ClientId, subType, cancellationToken);
+        if (duplicate)
+            return Result.Failure<InitiatePaymentResult>(SubscriptionErrors.AlreadyActive);
 
         var startsAt = DateTime.UtcNow;
         var expiresAt = startsAt.AddMonths(1);
