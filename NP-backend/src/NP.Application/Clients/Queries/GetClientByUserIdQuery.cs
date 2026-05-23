@@ -56,7 +56,7 @@ internal sealed class GetClientAccessQueryHandler : IQueryHandler<GetClientAcces
         return Result.Success(new ClientAccessDto(
             HasActiveSubscription:  primarySub?.Status == SubscriptionStatus.Active,
             HasPendingSubscription: primarySub?.Status == SubscriptionStatus.PendingApproval,
-            SubscriptionType:       predefinedSub?.Type.ToString() ?? personalizedSub?.Type.ToString() ?? aiSub?.Type.ToString(),
+            SubscriptionType:       primarySub?.Type.ToString(),
             SubscriptionId:         primarySub?.Id,
             NutritionPlanId:        predefinedSub?.NutritionPlanId ?? personalizedSub?.NutritionPlanId,
             NutritionistId:         personalizedSub?.NutritionistId,

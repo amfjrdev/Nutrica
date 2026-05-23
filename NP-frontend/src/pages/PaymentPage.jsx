@@ -82,6 +82,7 @@ const PaymentPage = () => {
   const [form, setForm]   = useState({ cardNumber: '', expiry: '', cvc: '', name: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
+  const [successDetails, setSuccessDetails] = useState(null);
 
   const plan = PLANS[selectedPlan];
   const set  = (f) => (e) => setForm((p) => ({ ...p, [f]: e.target.value }));
@@ -111,13 +112,15 @@ const PaymentPage = () => {
     try {
       if (IS_DEV_PAYMENT) {
         await mockPayment({ subscriptionType: plan.type, amount: plan.amount, currency: 'usd' });
+        const dest = (returnPlanId && selectedPlan === 'predefined')
+          ? '/my-plan'
+          : (selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending&mode=test');
+        
         if (returnPlanId && selectedPlan === 'predefined') {
           try { await selectPredefinedPlan(returnPlanId); } catch (_) {}
-          navigate('/my-plan');
-        } else {
-          const dest = selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending&mode=test';
-          navigate(dest);
         }
+        
+        setSuccessDetails({ planTitle: plan.title, amount: plan.amount, dest });
       } else {
         // Stripe Mode:
         // 1. Create PaymentIntent in backend
@@ -150,14 +153,15 @@ const PaymentPage = () => {
         }
 
         if (paymentIntent.status === 'succeeded') {
-          // If the payment is completed, redirect user
+          const dest = (returnPlanId && selectedPlan === 'predefined')
+            ? '/my-plan'
+            : (selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending');
+          
           if (returnPlanId && selectedPlan === 'predefined') {
             try { await selectPredefinedPlan(returnPlanId); } catch (_) {}
-            navigate('/my-plan');
-          } else {
-            const dest = selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending';
-            navigate(dest);
           }
+          
+          setSuccessDetails({ planTitle: plan.title, amount: plan.amount, dest });
         } else {
           setError(`Payment status: ${paymentIntent.status}. Awaiting completion.`);
         }
@@ -328,6 +332,33 @@ const PaymentPage = () => {
           </div>
         </form>
       </div>
+
+      {successDetails && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center border border-slate-100 transform scale-100 transition-all duration-300">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-10 h-10 text-emerald-500 animate-bounce" />
+            </div>
+            
+            <h3 className="text-2xl font-bold text-slate-900 mb-2">Payment Successful!</h3>
+            <p className="text-slate-600 mb-6 text-sm">
+              Thank you for your purchase. Your subscription to the <span className="font-semibold text-slate-800">{successDetails.planTitle}</span> has been processed successfully.
+            </p>
+
+            <div className="bg-slate-50 rounded-xl p-4 mb-6 flex justify-between items-center text-sm border border-slate-100">
+              <span className="text-slate-500 font-medium">Amount Paid</span>
+              <span className="text-slate-900 font-bold">${successDetails.amount}.00</span>
+            </div>
+
+            <button
+              onClick={() => navigate(successDetails.dest)}
+              className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/30 text-white font-bold rounded-xl transition-all transform hover:-translate-y-0.5"
+            >
+              Continue to Platform
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
