@@ -4,8 +4,43 @@ import { CreditCard, Calendar, CheckCircle, Loader2, FlaskConical } from 'lucide
 import PlanOption from '../components/payment/PlanOption';
 import InputField from '../components/payment/InputField';
 import { initiatePayment, mockPayment, selectPredefinedPlan } from '../services/api';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 const IS_DEV_PAYMENT = import.meta.env.VITE_DEV_MODE_PAYMENT === 'true';
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_TYooMQauvdEDq54NiTphI7jx');
+
+const stripeElementOptions = {
+  style: {
+    base: {
+      fontSize: '16px',
+      color: '#0f172a',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      '::placeholder': {
+        color: '#94a3b8',
+      },
+    },
+    invalid: {
+      color: '#ef4444',
+    },
+  },
+};
+
+const StripeInputWrapper = ({ label, icon: Icon, children }) => (
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
+    <div className="relative">
+      {Icon && (
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Icon className="h-5 w-5 text-slate-400" />
+        </div>
+      )}
+      <div className={`block w-full ${Icon ? 'pl-10' : 'pl-4'} pr-4 py-3 border border-slate-300 rounded-lg bg-white focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 transition-all`}>
+        {children}
+      </div>
+    </div>
+  </div>
+);
 
 const PLANS = {
   predefined: {
@@ -36,6 +71,8 @@ const PLANS = {
 };
 
 const PaymentPage = () => {
+  const stripe = useStripe();
+  const elements = useElements();
   const [searchParams] = useSearchParams();
   const navigate       = useNavigate();
 
@@ -52,9 +89,20 @@ const PaymentPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.cardNumber || !form.expiry || !form.cvc || !form.name) {
-      setError('Please fill in all payment fields.');
-      return;
+    if (IS_DEV_PAYMENT) {
+      if (!form.cardNumber || !form.expiry || !form.cvc || !form.name) {
+        setError('Please fill in all payment fields.');
+        return;
+      }
+    } else {
+      if (!stripe || !elements) {
+        setError('Stripe has not loaded yet. Please wait.');
+        return;
+      }
+      if (!form.name) {
+        setError('Please enter the cardholder name.');
+        return;
+      }
     }
 
     setError('');
@@ -71,17 +119,51 @@ const PaymentPage = () => {
           navigate(dest);
         }
       } else {
-        await initiatePayment({ nutritionistId: null, nutritionPlanId: null, subscriptionType: plan.type, amount: plan.amount, currency: 'usd' });
-        if (returnPlanId && selectedPlan === 'predefined') {
-          try { await selectPredefinedPlan(returnPlanId); } catch (_) {}
-          navigate('/my-plan');
+        // Stripe Mode:
+        // 1. Create PaymentIntent in backend
+        const initResult = await initiatePayment({
+          nutritionistId: null,
+          nutritionPlanId: null,
+          subscriptionType: plan.type,
+          amount: plan.amount,
+          currency: 'usd'
+        });
+
+        // 2. Confirm card payment client-side
+        const cardElement = elements.getElement(CardNumberElement);
+        const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
+          initResult.clientSecret,
+          {
+            payment_method: {
+              card: cardElement,
+              billing_details: {
+                name: form.name,
+              },
+            },
+          }
+        );
+
+        if (stripeError) {
+          setError(stripeError.message || 'Payment confirmation failed.');
+          setLoading(false);
+          return;
+        }
+
+        if (paymentIntent.status === 'succeeded') {
+          // If the payment is completed, redirect user
+          if (returnPlanId && selectedPlan === 'predefined') {
+            try { await selectPredefinedPlan(returnPlanId); } catch (_) {}
+            navigate('/my-plan');
+          } else {
+            const dest = selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending';
+            navigate(dest);
+          }
         } else {
-          const dest = selectedPlan === 'personalized' ? '/questionnaire?from=payment' : '/dashboard?payment=pending';
-          navigate(dest);
+          setError(`Payment status: ${paymentIntent.status}. Awaiting completion.`);
         }
       }
     } catch (err) {
-      setError(err?.detail || err?.title || 'Payment failed. Please try again.');
+      setError(err?.detail || err?.title || err?.message || 'Payment failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -136,28 +218,46 @@ const PaymentPage = () => {
                 )}
 
                 <div className="space-y-5">
-                  <InputField
-                    label="Card Number"
-                    icon={CreditCard}
-                    placeholder={IS_DEV_PAYMENT ? '4242 4242 4242 4242 (any value)' : '4242 4242 4242 4242'}
-                    value={form.cardNumber}
-                    onChange={set('cardNumber')}
-                  />
-                  <div className="grid grid-cols-2 gap-6">
-                    <InputField
-                      label="Expiry Date"
-                      icon={Calendar}
-                      placeholder="MM/YY"
-                      value={form.expiry}
-                      onChange={set('expiry')}
-                    />
-                    <InputField
-                      label="CVC"
-                      placeholder="123"
-                      value={form.cvc}
-                      onChange={set('cvc')}
-                    />
-                  </div>
+                  {IS_DEV_PAYMENT ? (
+                    <>
+                      <InputField
+                        label="Card Number"
+                        icon={CreditCard}
+                        placeholder="4242 4242 4242 4242 (any value)"
+                        value={form.cardNumber}
+                        onChange={set('cardNumber')}
+                      />
+                      <div className="grid grid-cols-2 gap-6">
+                        <InputField
+                          label="Expiry Date"
+                          icon={Calendar}
+                          placeholder="MM/YY"
+                          value={form.expiry}
+                          onChange={set('expiry')}
+                        />
+                        <InputField
+                          label="CVC"
+                          placeholder="123"
+                          value={form.cvc}
+                          onChange={set('cvc')}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <StripeInputWrapper label="Card Number" icon={CreditCard}>
+                        <CardNumberElement options={stripeElementOptions} />
+                      </StripeInputWrapper>
+                      <div className="grid grid-cols-2 gap-6">
+                        <StripeInputWrapper label="Expiry Date" icon={Calendar}>
+                          <CardExpiryElement options={stripeElementOptions} />
+                        </StripeInputWrapper>
+                        <StripeInputWrapper label="CVC">
+                          <CardCvcElement options={stripeElementOptions} />
+                        </StripeInputWrapper>
+                      </div>
+                    </>
+                  )}
                   <InputField
                     label="Cardholder Name"
                     placeholder="John Doe"
@@ -232,4 +332,10 @@ const PaymentPage = () => {
   );
 };
 
-export default PaymentPage;
+const PaymentPageWrapper = () => (
+  <Elements stripe={stripePromise}>
+    <PaymentPage />
+  </Elements>
+);
+
+export default PaymentPageWrapper;

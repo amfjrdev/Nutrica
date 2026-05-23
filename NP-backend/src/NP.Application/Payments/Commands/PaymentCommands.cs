@@ -36,12 +36,21 @@ internal sealed class CreatePaymentCommandHandler : ICommandHandler<CreatePaymen
 internal sealed class ConfirmPaymentCommandHandler : ICommandHandler<ConfirmPaymentCommand>
 {
     private readonly IPaymentRepository _repo;
+    private readonly ISubscriptionRepository _subscriptionRepository;
+    private readonly INutritionistRepository _nutritionistRepository;
     private readonly IClientRepository _clientRepository;
     private readonly NotificationDispatcher _dispatcher;
 
-    public ConfirmPaymentCommandHandler(IPaymentRepository repo, IClientRepository clientRepository, NotificationDispatcher dispatcher)
+    public ConfirmPaymentCommandHandler(
+        IPaymentRepository repo,
+        ISubscriptionRepository subscriptionRepository,
+        INutritionistRepository nutritionistRepository,
+        IClientRepository clientRepository,
+        NotificationDispatcher dispatcher)
     {
         _repo = repo;
+        _subscriptionRepository = subscriptionRepository;
+        _nutritionistRepository = nutritionistRepository;
         _clientRepository = clientRepository;
         _dispatcher = dispatcher;
     }
@@ -56,11 +65,30 @@ internal sealed class ConfirmPaymentCommandHandler : ICommandHandler<ConfirmPaym
 
         _repo.Update(payment);
 
+        var subscription = await _subscriptionRepository.GetByIdAsync(payment.SubscriptionId, cancellationToken);
+        if (subscription is null) return Result.Failure(SubscriptionErrors.NotFound);
+
+        if (subscription.Type == SubscriptionType.Personalized && subscription.NutritionistId is null)
+        {
+            const string PlatformNutritionistEmail = "nutritionist@nutrilife.com";
+            var nutritionist = await _nutritionistRepository.GetByEmailAsync(PlatformNutritionistEmail, cancellationToken)
+                            ?? (await _nutritionistRepository.GetAllAsync(cancellationToken))
+                                   .FirstOrDefault(n => n.IsApproved)
+                            ?? (await _nutritionistRepository.GetAllAsync(cancellationToken))
+                                   .FirstOrDefault();
+            if (nutritionist is not null)
+                subscription.AssignNutritionist(nutritionist.Id);
+        }
+
+        var activateResult = subscription.Activate();
+        if (activateResult.IsFailure) return activateResult;
+        _subscriptionRepository.Update(subscription);
+
         var client = await _clientRepository.GetByIdAsync(payment.ClientId, cancellationToken);
         if (client is not null)
             await _dispatcher.AdminApprovedAsync(client.UserId,
-                "Payment Confirmed",
-                "Your payment has been confirmed successfully.", cancellationToken);
+                "Subscription Activated",
+                $"Your {subscription.Type} subscription has been activated successfully.", cancellationToken);
 
         return Result.Success();
     }

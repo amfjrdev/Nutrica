@@ -41,9 +41,6 @@ internal sealed class InitiatePaymentCommandHandler : ICommandHandler<InitiatePa
         if (!Enum.TryParse<SubscriptionType>(command.SubscriptionType, out var subType))
             return Result.Failure<InitiatePaymentResult>(new Error("Subscription.InvalidType", "Invalid subscription type."));
 
-        var duplicate = await _subscriptionRepository.HasActiveOrPendingByTypeAsync(command.ClientId, subType, cancellationToken);
-        if (duplicate)
-            return Result.Failure<InitiatePaymentResult>(SubscriptionErrors.AlreadyActive);
 
         var startsAt = DateTime.UtcNow;
         var expiresAt = startsAt.AddMonths(1);

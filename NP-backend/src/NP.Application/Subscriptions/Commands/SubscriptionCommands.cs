@@ -30,8 +30,6 @@ internal sealed class CreateSubscriptionCommandHandler : ICommandHandler<CreateS
         if (!Enum.TryParse<SubscriptionType>(command.Type, out var type))
             return Result.Failure<Guid>(new Error("Subscription.InvalidType", "Invalid subscription type."));
 
-        var duplicate = await _repo.HasActiveOrPendingByTypeAsync(command.ClientId, type, cancellationToken);
-        if (duplicate) return Result.Failure<Guid>(SubscriptionErrors.AlreadyActive);
 
         var result = Subscription.Create(command.ClientId, command.NutritionistId, command.NutritionPlanId, type, command.StartsAt, command.ExpiresAt);
         if (result.IsFailure) return Result.Failure<Guid>(result.Error);
