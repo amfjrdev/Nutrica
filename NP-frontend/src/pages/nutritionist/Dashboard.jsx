@@ -159,8 +159,6 @@ const NutritionistDashboard = () => {
               </div>
             )}
           </div>
-
-          </div>
     </div>
   );
 };
