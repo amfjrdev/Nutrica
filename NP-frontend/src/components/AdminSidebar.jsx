@@ -1,10 +1,6 @@
 import { LayoutDashboard, Users, CreditCard, CheckSquare, BookOpen, LogOut } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useNotifications } from '../hooks/useNotifications';
-import { NotificationBell } from './NotificationPanel';
-import NotificationPanel from './NotificationPanel';
-import { useState } from 'react';
 import logo from '../assets/Nutrica-logo.png';
 
 const NAV_ITEMS = [
@@ -19,8 +15,6 @@ const AdminSidebar = () => {
   const { user, clearAuth } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { notifications, loading, unreadCount, markRead, markAllRead } = useNotifications();
-  const [showPanel, setShowPanel] = useState(false);
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col fixed h-full z-10">
@@ -40,19 +34,6 @@ const AdminSidebar = () => {
             <Icon className="w-5 h-5 mr-3" /><span>{label}</span>
           </Link>
         ))}
-        <NotificationBell unreadCount={unreadCount} onClick={() => setShowPanel((v) => !v)} />
-        {showPanel && (
-          <div className="mt-2">
-            <NotificationPanel
-              notifications={notifications}
-              loading={loading}
-              unreadCount={unreadCount}
-              markRead={markRead}
-              markAllRead={markAllRead}
-              onClose={() => setShowPanel(false)}
-            />
-          </div>
-        )}
       </nav>
 
       <div className="p-4 border-t border-slate-100">

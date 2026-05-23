@@ -1,10 +1,6 @@
 import { Users, Calendar, MessageCircle, PlusCircle, BookOpen, User, LogOut, ClipboardList, LayoutList } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useState } from 'react';
-import { useNotifications } from '../hooks/useNotifications';
-import { NotificationBell } from './NotificationPanel';
-import NotificationPanel from './NotificationPanel';
 import logo from '../assets/Nutrica-logo.png';
 
 const NAV_ITEMS = [
@@ -22,8 +18,6 @@ const NutritionistSidebar = () => {
   const { user, clearAuth } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { notifications, loading, unreadCount, markRead, markAllRead } = useNotifications();
-  const [showPanel, setShowPanel] = useState(false);
 
   const handleLogout = () => { clearAuth(); navigate('/'); };
 
@@ -46,19 +40,6 @@ const NutritionistSidebar = () => {
             <span>{label}</span>
           </Link>
         ))}
-        <NotificationBell unreadCount={unreadCount} onClick={() => setShowPanel((v) => !v)} />
-        {showPanel && (
-          <div className="mt-2">
-            <NotificationPanel
-              notifications={notifications}
-              loading={loading}
-              unreadCount={unreadCount}
-              markRead={markRead}
-              markAllRead={markAllRead}
-              onClose={() => setShowPanel(false)}
-            />
-          </div>
-        )}
       </nav>
 
       <div className="p-4 border-t border-slate-100">

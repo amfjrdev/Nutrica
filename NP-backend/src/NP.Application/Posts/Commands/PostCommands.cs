@@ -1,4 +1,5 @@
 using NP.Application.Abstractions.Messaging;
+using NP.Application.Notifications;
 using NP.Domain.Abstractions;
 using NP.Domain.Posts;
 using NP.Domain.Posts.Repositories;
@@ -20,7 +21,13 @@ public sealed record DeletePostCommand(Guid PostId) : ICommand;
 internal sealed class CreatePostCommandHandler : ICommandHandler<CreatePostCommand, Guid>
 {
     private readonly IPostRepository _repo;
-    public CreatePostCommandHandler(IPostRepository repo) => _repo = repo;
+    private readonly NotificationDispatcher _dispatcher;
+
+    public CreatePostCommandHandler(IPostRepository repo, NotificationDispatcher dispatcher)
+    {
+        _repo = repo;
+        _dispatcher = dispatcher;
+    }
 
     public async Task<Result<Guid>> HandleAsync(CreatePostCommand command, CancellationToken cancellationToken = default)
     {
@@ -28,6 +35,11 @@ internal sealed class CreatePostCommandHandler : ICommandHandler<CreatePostComma
         if (result.IsFailure) return Result.Failure<Guid>(result.Error);
 
         await _repo.AddAsync(result.Value, cancellationToken);
+
+        await _dispatcher.ClientActedAsync(null,
+            "New Article Submitted",
+            $"A {command.AuthorRole} submitted a new article '{command.Title}' for approval.", cancellationToken);
+
         return Result.Success(result.Value.Id);
     }
 }
@@ -53,7 +65,13 @@ internal sealed class EditPostCommandHandler : ICommandHandler<EditPostCommand>
 internal sealed class ApprovePostCommandHandler : ICommandHandler<ApprovePostCommand>
 {
     private readonly IPostRepository _repo;
-    public ApprovePostCommandHandler(IPostRepository repo) => _repo = repo;
+    private readonly NotificationDispatcher _dispatcher;
+
+    public ApprovePostCommandHandler(IPostRepository repo, NotificationDispatcher dispatcher)
+    {
+        _repo = repo;
+        _dispatcher = dispatcher;
+    }
 
     public async Task<Result> HandleAsync(ApprovePostCommand command, CancellationToken cancellationToken = default)
     {
@@ -64,6 +82,11 @@ internal sealed class ApprovePostCommandHandler : ICommandHandler<ApprovePostCom
         if (result.IsFailure) return result;
 
         _repo.Update(post);
+
+        await _dispatcher.AdminApprovedAsync(post.AuthorId,
+            "Article Approved",
+            $"Your article '{post.Title}' has been approved and is now published.", cancellationToken);
+
         return Result.Success();
     }
 }
@@ -71,7 +94,13 @@ internal sealed class ApprovePostCommandHandler : ICommandHandler<ApprovePostCom
 internal sealed class RejectPostCommandHandler : ICommandHandler<RejectPostCommand>
 {
     private readonly IPostRepository _repo;
-    public RejectPostCommandHandler(IPostRepository repo) => _repo = repo;
+    private readonly NotificationDispatcher _dispatcher;
+
+    public RejectPostCommandHandler(IPostRepository repo, NotificationDispatcher dispatcher)
+    {
+        _repo = repo;
+        _dispatcher = dispatcher;
+    }
 
     public async Task<Result> HandleAsync(RejectPostCommand command, CancellationToken cancellationToken = default)
     {
@@ -82,6 +111,11 @@ internal sealed class RejectPostCommandHandler : ICommandHandler<RejectPostComma
         if (result.IsFailure) return result;
 
         _repo.Update(post);
+
+        await _dispatcher.AdminRejectedAsync(post.AuthorId,
+            "Article Rejected",
+            $"Your article '{post.Title}' was rejected. Reason: {command.Reason}", cancellationToken);
+
         return Result.Success();
     }
 }

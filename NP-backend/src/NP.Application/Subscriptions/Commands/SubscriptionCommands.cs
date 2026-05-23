@@ -1,7 +1,10 @@
 using NP.Application.Abstractions.Messaging;
+using NP.Application.Notifications;
 using NP.Domain.Abstractions;
+using NP.Domain.Clients.Repositories;
 using NP.Domain.Subscriptions;
 using NP.Domain.Subscriptions.Repositories;
+using NP.Domain.Users.Repositories;
 
 namespace NP.Application.Subscriptions.Commands;
 
@@ -12,7 +15,15 @@ public sealed record CancelSubscriptionCommand(Guid SubscriptionId) : ICommand;
 internal sealed class CreateSubscriptionCommandHandler : ICommandHandler<CreateSubscriptionCommand, Guid>
 {
     private readonly ISubscriptionRepository _repo;
-    public CreateSubscriptionCommandHandler(ISubscriptionRepository repo) => _repo = repo;
+    private readonly IClientRepository _clientRepository;
+    private readonly NotificationDispatcher _dispatcher;
+
+    public CreateSubscriptionCommandHandler(ISubscriptionRepository repo, IClientRepository clientRepository, NotificationDispatcher dispatcher)
+    {
+        _repo = repo;
+        _clientRepository = clientRepository;
+        _dispatcher = dispatcher;
+    }
 
     public async Task<Result<Guid>> HandleAsync(CreateSubscriptionCommand command, CancellationToken cancellationToken = default)
     {
@@ -26,6 +37,11 @@ internal sealed class CreateSubscriptionCommandHandler : ICommandHandler<CreateS
         if (result.IsFailure) return Result.Failure<Guid>(result.Error);
 
         await _repo.AddAsync(result.Value, cancellationToken);
+
+        await _dispatcher.ClientActedAsync(null,
+            "New Subscription Pending",
+            $"A client subscribed to the {type} plan and is awaiting payment approval.", cancellationToken);
+
         return Result.Success(result.Value.Id);
     }
 }
@@ -33,7 +49,15 @@ internal sealed class CreateSubscriptionCommandHandler : ICommandHandler<CreateS
 internal sealed class CancelSubscriptionCommandHandler : ICommandHandler<CancelSubscriptionCommand>
 {
     private readonly ISubscriptionRepository _repo;
-    public CancelSubscriptionCommandHandler(ISubscriptionRepository repo) => _repo = repo;
+    private readonly IClientRepository _clientRepository;
+    private readonly NotificationDispatcher _dispatcher;
+
+    public CancelSubscriptionCommandHandler(ISubscriptionRepository repo, IClientRepository clientRepository, NotificationDispatcher dispatcher)
+    {
+        _repo = repo;
+        _clientRepository = clientRepository;
+        _dispatcher = dispatcher;
+    }
 
     public async Task<Result> HandleAsync(CancelSubscriptionCommand command, CancellationToken cancellationToken = default)
     {
@@ -44,6 +68,13 @@ internal sealed class CancelSubscriptionCommandHandler : ICommandHandler<CancelS
         if (result.IsFailure) return result;
 
         _repo.Update(sub);
+
+        var client = await _clientRepository.GetByIdAsync(sub.ClientId, cancellationToken);
+        if (client is not null)
+            await _dispatcher.AdminRejectedAsync(client.UserId,
+                "Subscription Cancelled",
+                "Your subscription has been cancelled.", cancellationToken);
+
         return Result.Success();
     }
 }

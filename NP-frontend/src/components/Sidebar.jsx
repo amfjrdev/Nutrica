@@ -3,9 +3,6 @@ import { LayoutDashboard, Utensils, MessageSquare, Camera, BookOpen, User, LogOu
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getClientAccess } from '../services/api';
-import { useNotifications } from '../hooks/useNotifications';
-import { NotificationBell } from './NotificationPanel';
-import NotificationPanel from './NotificationPanel';
 import logo from '../assets/Nutrica-logo.png';
 
 // Which nav items each approved plan type unlocks (on top of the always-visible set)
@@ -33,8 +30,6 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [access, setAccess] = useState(null);
-  const { notifications, loading, unreadCount, markRead, markAllRead } = useNotifications();
-  const [showPanel, setShowPanel] = useState(false);
 
   useEffect(() => {
     getClientAccess().then(setAccess).catch(() => setAccess(null));
@@ -90,19 +85,6 @@ const Sidebar = () => {
             </Link>
           );
         })}
-        <NotificationBell unreadCount={unreadCount} onClick={() => setShowPanel((v) => !v)} />
-        {showPanel && (
-          <div className="mt-2">
-            <NotificationPanel
-              notifications={notifications}
-              loading={loading}
-              unreadCount={unreadCount}
-              markRead={markRead}
-              markAllRead={markAllRead}
-              onClose={() => setShowPanel(false)}
-            />
-          </div>
-        )}
       </nav>
 
       <div className="p-4 border-t border-slate-100">

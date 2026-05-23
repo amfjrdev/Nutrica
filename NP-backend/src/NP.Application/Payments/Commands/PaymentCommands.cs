@@ -1,5 +1,7 @@
 using NP.Application.Abstractions.Messaging;
+using NP.Application.Notifications;
 using NP.Domain.Abstractions;
+using NP.Domain.Clients.Repositories;
 using NP.Domain.Nutritionists.Repositories;
 using NP.Domain.Payments;
 using NP.Domain.Payments.Repositories;
@@ -34,7 +36,15 @@ internal sealed class CreatePaymentCommandHandler : ICommandHandler<CreatePaymen
 internal sealed class ConfirmPaymentCommandHandler : ICommandHandler<ConfirmPaymentCommand>
 {
     private readonly IPaymentRepository _repo;
-    public ConfirmPaymentCommandHandler(IPaymentRepository repo) => _repo = repo;
+    private readonly IClientRepository _clientRepository;
+    private readonly NotificationDispatcher _dispatcher;
+
+    public ConfirmPaymentCommandHandler(IPaymentRepository repo, IClientRepository clientRepository, NotificationDispatcher dispatcher)
+    {
+        _repo = repo;
+        _clientRepository = clientRepository;
+        _dispatcher = dispatcher;
+    }
 
     public async Task<Result> HandleAsync(ConfirmPaymentCommand command, CancellationToken cancellationToken = default)
     {
@@ -45,6 +55,13 @@ internal sealed class ConfirmPaymentCommandHandler : ICommandHandler<ConfirmPaym
         if (result.IsFailure) return result;
 
         _repo.Update(payment);
+
+        var client = await _clientRepository.GetByIdAsync(payment.ClientId, cancellationToken);
+        if (client is not null)
+            await _dispatcher.AdminApprovedAsync(client.UserId,
+                "Payment Confirmed",
+                "Your payment has been confirmed successfully.", cancellationToken);
+
         return Result.Success();
     }
 }
@@ -72,15 +89,21 @@ internal sealed class ApprovePaymentCommandHandler : ICommandHandler<ApprovePaym
     private readonly IPaymentRepository _repo;
     private readonly ISubscriptionRepository _subscriptionRepository;
     private readonly INutritionistRepository _nutritionistRepository;
+    private readonly IClientRepository _clientRepository;
+    private readonly NotificationDispatcher _dispatcher;
 
     public ApprovePaymentCommandHandler(
         IPaymentRepository repo,
         ISubscriptionRepository subscriptionRepository,
-        INutritionistRepository nutritionistRepository)
+        INutritionistRepository nutritionistRepository,
+        IClientRepository clientRepository,
+        NotificationDispatcher dispatcher)
     {
         _repo = repo;
         _subscriptionRepository = subscriptionRepository;
         _nutritionistRepository = nutritionistRepository;
+        _clientRepository = clientRepository;
+        _dispatcher = dispatcher;
     }
 
     public async Task<Result> HandleAsync(ApprovePaymentCommand command, CancellationToken cancellationToken = default)
@@ -114,6 +137,12 @@ internal sealed class ApprovePaymentCommandHandler : ICommandHandler<ApprovePaym
         var activateResult = subscription.Activate();
         if (activateResult.IsFailure) return activateResult;
         _subscriptionRepository.Update(subscription);
+
+        var client = await _clientRepository.GetByIdAsync(payment.ClientId, cancellationToken);
+        if (client is not null)
+            await _dispatcher.AdminApprovedAsync(client.UserId,
+                "Subscription Activated",
+                $"Your {subscription.Type} subscription has been activated. Enjoy your plan!", cancellationToken);
 
         return Result.Success();
     }
