@@ -53,13 +53,18 @@ const ConfirmModal = ({ plan, onConfirm, onCancel, loading, needsSubscription })
 );
 
 // ── Plan detail view ──────────────────────────────────────────────────────────
-const PlanDetail = ({ plan, meta, onBack, isUnlocked, onSelect, selecting }) => {
+const PlanDetail = ({ plan, meta, onBack, isUnlocked, hasPredefined, unlockedPlanId, unlockedPlanTitle, onSelect, selecting }) => {
   const parsedContent = (() => {
     try { const p = JSON.parse(plan.content); return typeof p === 'object' ? p : null; } catch { return null; }
   })();
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const [activeDay, setActiveDay] = useState('Mon');
   const meals = parsedContent?.[activeDay] ?? [];
+
+  // Show blur overlay if:
+  // 1. User doesn't have a subscription at all
+  // 2. User has a subscription but has already unlocked a DIFFERENT plan
+  const showOverlay = !isUnlocked && (!hasPredefined || unlockedPlanId !== null);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -113,7 +118,7 @@ const PlanDetail = ({ plan, meta, onBack, isUnlocked, onSelect, selecting }) => 
         )}
       </div>
 
-      <div className={`bg-white rounded-2xl border border-slate-200 p-6 shadow-sm relative ${!isUnlocked ? 'overflow-hidden' : ''}`}>
+      <div className={`bg-white rounded-2xl border border-slate-200 p-6 shadow-sm relative ${showOverlay ? 'overflow-hidden' : ''}`}>
         <h2 className="text-lg font-bold text-slate-900 mb-5 flex items-center gap-2">
           <Utensils className="w-5 h-5 text-emerald-500" /> Weekly Meal Plan
         </h2>
@@ -150,16 +155,40 @@ const PlanDetail = ({ plan, meta, onBack, isUnlocked, onSelect, selecting }) => 
           <pre className="whitespace-pre-wrap text-sm text-slate-700 bg-slate-50 p-4 rounded-xl">{plan.content}</pre>
         )}
 
-        {!isUnlocked && (
+        {hasPredefined && !unlockedPlanId && (
+          <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center">
+            <button onClick={onSelect} disabled={selecting}
+              className="flex items-center gap-2 px-8 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-bold rounded-xl transition-all shadow-md shadow-emerald-500/20 transform hover:-translate-y-0.5">
+              {selecting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Unlock className="w-5 h-5" />}
+              Select & Unlock This Plan
+            </button>
+          </div>
+        )}
+
+        {showOverlay && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl">
             <Lock className="w-10 h-10 text-slate-400 mb-3" />
             <p className="font-semibold text-slate-700 mb-1">Plan Locked</p>
-            <p className="text-sm text-slate-500 mb-4 text-center px-8">Select this plan to unlock the full meal schedule</p>
-            <button onClick={onSelect} disabled={selecting}
-              className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors">
-              {selecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
-              Select This Plan
-            </button>
+            
+            {!hasPredefined ? (
+              <>
+                <p className="text-sm text-slate-500 mb-4 text-center px-8">Subscribe to unlock the full meal schedule</p>
+                <button onClick={onSelect} disabled={selecting}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors">
+                  Subscribe to Unlock
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500 mb-4 text-center px-8">
+                  You have already unlocked another plan ("{unlockedPlanTitle}").
+                </p>
+                <button onClick={onBack}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-slate-500 hover:bg-slate-600 text-white font-semibold rounded-xl transition-colors">
+                  Back to Plans
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -222,7 +251,12 @@ const ReadyMadePlans = () => {
       <>
         {toConfirm && <ConfirmModal plan={toConfirm} needsSubscription={!hasPredefined} onConfirm={handleConfirm} onCancel={() => setToConfirm(null)} loading={selecting} />}
         <PlanDetail
-          plan={selected} meta={meta} isUnlocked={isUnlocked}
+          plan={selected}
+          meta={meta}
+          isUnlocked={isUnlocked}
+          hasPredefined={hasPredefined}
+          unlockedPlanId={unlockedPlanId}
+          unlockedPlanTitle={plans.find(p => p.id === unlockedPlanId)?.title}
           onBack={() => setSelected(null)}
           onSelect={() => setToConfirm(selected)}
           selecting={selecting}
