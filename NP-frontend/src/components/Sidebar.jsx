@@ -40,8 +40,16 @@ const Sidebar = () => {
 
   // Derive the set of unlocked keys
   const unlockedKeys = (() => {
-    if (!access?.hasActiveSubscription) return new Set();
-    return new Set(PLAN_UNLOCKS[access.subscriptionType] ?? []);
+    if (!access) return new Set();
+    const keys = new Set();
+    // Merge unlocks from all active subscription types
+    if (access.hasPersonalized || (access.hasActiveSubscription && access.subscriptionType === 'Personalized'))
+      PLAN_UNLOCKS.Personalized.forEach(k => keys.add(k));
+    if (access.hasPredefined || (access.hasActiveSubscription && access.subscriptionType === 'Predefined'))
+      PLAN_UNLOCKS.Predefined.forEach(k => keys.add(k));
+    if (access.hasAI || (access.hasActiveSubscription && access.subscriptionType === 'AI'))
+      PLAN_UNLOCKS.AI.forEach(k => keys.add(k));
+    return keys;
   })();
 
   const isUnlocked = (item) => item.alwaysVisible || unlockedKeys.has(item.key);
