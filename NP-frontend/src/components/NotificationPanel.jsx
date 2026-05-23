@@ -46,7 +46,7 @@ const NotificationPanel = ({ notifications, loading, unreadCount, markRead, mark
       {/* Dropdown */}
       {open && (
         <div className="absolute right-0 top-12 w-80 sm:w-96 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 flex flex-col overflow-hidden"
-          style={{ maxHeight: '480px' }}>
+          style={{ maxHeight: '70vh' }}>
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">

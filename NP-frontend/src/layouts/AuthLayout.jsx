@@ -17,7 +17,7 @@ const AuthLayout = ({ children, role = 'client' }) => {
     <div className="flex min-h-screen bg-slate-50 font-sans">
       <SidebarComponent />
       <main className="flex-1 md:ml-64 p-4 md:p-8">
-        <div className="fixed top-4 right-4 z-40">
+        <div className="fixed top-6 right-6 z-40">
           <NotificationPanel
             notifications={notifications}
             loading={loading}
