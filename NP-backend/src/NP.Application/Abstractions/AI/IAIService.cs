@@ -14,7 +14,8 @@ public sealed record CalorieEstimationResult(
     double        TotalCarbs    = 0,
     double        TotalProtein  = 0,
     int           ItemsDetected = 0,
-    List<DetectedFoodItem>? Foods = null
+    List<DetectedFoodItem>? Foods = null,
+    string?       SegmentedImage = null
 );
 
 public sealed record DetectedFoodItem(

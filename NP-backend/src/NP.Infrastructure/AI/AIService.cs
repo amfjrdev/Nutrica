@@ -130,6 +130,10 @@ internal sealed class AIService : IAIService
         var totalProtein  = root.GetProperty("total_protein_g").GetDouble();
         var itemsDetected = root.GetProperty("items_detected").GetInt32();
 
+        string? segmentedImage = null;
+        if (root.TryGetProperty("segmented_image", out var segEl) && segEl.ValueKind == JsonValueKind.String)
+            segmentedImage = segEl.GetString();
+
         var foodName = foods.Count > 0
             ? string.Join(", ", foods.Select(f => f.Name))
             : "No food detected";
@@ -146,7 +150,8 @@ internal sealed class AIService : IAIService
             TotalCarbs:        totalCarbs,
             TotalProtein:      totalProtein,
             ItemsDetected:     itemsDetected,
-            Foods:             foods
+            Foods:             foods,
+            SegmentedImage:    segmentedImage
         );
     }
 }
