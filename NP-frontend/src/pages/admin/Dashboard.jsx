@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
   getAllUsers, getAllSubscriptions, getAllPayments,
-  getPendingPlans, getPendingPosts,
+  getPendingPlans,
 } from '../../services/api';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -256,8 +256,7 @@ const AdminDashboard = () => {
       getAllSubscriptions(),
       getAllPayments(),
       getPendingPlans(),
-      getPendingPosts(),
-    ]).then(([users, subs, payments, plans, posts]) => {
+    ]).then(([users, subs, payments, plans]) => {
 
       // ── Revenue ──────────────────────────────────────────────────────────
       const revData = groupRevenueByMonth(payments);
@@ -284,7 +283,7 @@ const AdminDashboard = () => {
       const totalRevenue = payments
         .filter(p => p.status === 'Succeeded' || p.status === 'Paid')
         .reduce((sum, p) => sum + (p.amount || 0), 0);
-      const pendingCount = plans.length + posts.length;
+      const pendingCount = plans.length;
 
       // Month-over-month user growth (rough: users created this month vs last)
       const now       = new Date();

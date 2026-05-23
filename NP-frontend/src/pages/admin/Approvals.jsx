@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Check, X, FileText, BookOpen, CheckSquare, Loader2, CreditCard } from 'lucide-react';
-import { getPendingPlans, getPendingPosts, approvePlan, rejectPlan, approvePost, rejectPost, getPendingPayments, approvePayment } from '../../services/api';
+import { Check, X, FileText, CheckSquare, Loader2, CreditCard } from 'lucide-react';
+import { getPendingPlans, approvePlan, rejectPlan, getPendingPayments, approvePayment } from '../../services/api';
 
 const TabButton = ({ icon: Icon, label, active, onClick }) => (
   <button onClick={onClick}
@@ -53,7 +53,6 @@ const ApprovalItem = ({ title, subtitle, date, onApprove, onReject, actionId, id
 
 const AdminApprovals = () => {
   const [plans, setPlans]       = useState([]);
-  const [posts, setPosts]       = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [actionId, setActionId] = useState(null);
@@ -61,8 +60,8 @@ const AdminApprovals = () => {
   const [activeTab, setActiveTab] = useState('payments');
 
   useEffect(() => {
-    Promise.all([getPendingPlans(), getPendingPosts(), getPendingPayments()])
-      .then(([p, po, pay]) => { setPlans(p); setPosts(po); setPayments(pay); })
+    Promise.all([getPendingPlans(), getPendingPayments()])
+      .then(([p, pay]) => { setPlans(p); setPayments(pay); })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -79,22 +78,11 @@ const AdminApprovals = () => {
     catch (e) { console.error(e); } finally { setActionId(null); }
   };
 
-  const handleApprovePost = async (id) => {
-    setActionId(id);
-    try { await approvePost(id); setPosts((prev) => prev.filter((p) => p.id !== id)); }
-    catch (e) { console.error(e); } finally { setActionId(null); }
-  };
-
   const handleRejectConfirm = async (reason) => {
     setActionId(rejectTarget.id);
     try {
-      if (rejectTarget.type === 'plan') {
-        await rejectPlan(rejectTarget.id, reason);
-        setPlans((prev) => prev.filter((p) => p.id !== rejectTarget.id));
-      } else {
-        await rejectPost(rejectTarget.id, reason);
-        setPosts((prev) => prev.filter((p) => p.id !== rejectTarget.id));
-      }
+      await rejectPlan(rejectTarget.id, reason);
+      setPlans((prev) => prev.filter((p) => p.id !== rejectTarget.id));
       setRejectTarget(null);
     } catch (e) { console.error(e); } finally { setActionId(null); }
   };
@@ -105,7 +93,7 @@ const AdminApprovals = () => {
     <div className="max-w-5xl mx-auto">
       {rejectTarget && (
         <RejectModal
-          label={rejectTarget.type === 'plan' ? 'Plan' : 'Article'}
+          label="Plan"
           loading={!!actionId}
           onConfirm={handleRejectConfirm}
           onCancel={() => setRejectTarget(null)}
@@ -120,12 +108,11 @@ const AdminApprovals = () => {
           <div className="flex flex-wrap gap-2 mb-8">
             <TabButton icon={CreditCard} label={`Payments (${payments.length})`} active={activeTab === 'payments'} onClick={() => setActiveTab('payments')} />
             <TabButton icon={FileText}   label={`Plans (${plans.length})`}        active={activeTab === 'plans'}    onClick={() => setActiveTab('plans')} />
-            <TabButton icon={BookOpen}   label={`Articles (${posts.length})`}     active={activeTab === 'articles'} onClick={() => setActiveTab('articles')} />
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 mb-6">
-              {activeTab === 'plans' ? 'Pending Nutrition Plans' : 'Pending Articles'}
+              {activeTab === 'payments' ? 'Pending Payments' : 'Pending Nutrition Plans'}
             </h3>
 
             {loading ? (
@@ -149,7 +136,7 @@ const AdminApprovals = () => {
                   ))}
                 </div>
               )
-            ) : activeTab === 'plans' ? (
+            ) : (
               plans.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
                   <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -165,25 +152,6 @@ const AdminApprovals = () => {
                       actionId={actionId}
                       onApprove={handleApprovePlan}
                       onReject={(id) => setRejectTarget({ id, type: 'plan' })} />
-                  ))}
-                </div>
-              )
-            ) : (
-              posts.length === 0 ? (
-                <div className="text-center py-12 text-slate-400">
-                  <CheckSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No pending articles</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {posts.map((post) => (
-                    <ApprovalItem key={post.id} id={post.id}
-                      title={post.title}
-                      subtitle={`By ${post.authorRole} · ${post.content?.slice(0, 60)}...`}
-                      date={formatDate(post.createdAt)}
-                      actionId={actionId}
-                      onApprove={handleApprovePost}
-                      onReject={(id) => setRejectTarget({ id, type: 'post' })} />
                   ))}
                 </div>
               )
