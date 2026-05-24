@@ -151,6 +151,24 @@ export const estimateCalories = async (imageFile) => {
   return res.json(); // { foodName, estimatedCalories, details }
 };
 
+// GET /api/ai/calorie-scans
+export const getCalorieScans = async () => {
+  const res = await fetch(`${BASE_URL}/ai/calorie-scans`, { headers: getAuthHeaders() });
+  if (!res.ok) throw await res.json();
+  return res.json(); // CalorieScanDto[]
+};
+
+// PUT /api/ai/calorie-scans/{id}
+export const updateCalorieScan = async (id, foods) => {
+  const res = await fetch(`${BASE_URL}/ai/calorie-scans/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ foods }),
+  });
+  if (!res.ok) throw await res.json();
+  return res.json(); // CalorieEstimationResult
+};
+
 // GET /api/posts (anonymous - approved posts)
 export const getApprovedPosts = async () => {
   const res = await fetch(`${BASE_URL}/posts`);

@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IFeedbackRepository, FeedbackRepository>();
         services.AddScoped<INutritionistRatingRepository, NutritionistRatingRepository>();
+        services.AddScoped<NP.Domain.CalorieScans.Repositories.ICalorieScanRepository, CalorieScanRepository>();
 
         // Chat
         services.AddScoped<IChatMessageRepository, ChatMessageRepository>();

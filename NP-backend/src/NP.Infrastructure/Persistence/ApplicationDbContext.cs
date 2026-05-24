@@ -11,6 +11,7 @@ using NP.Domain.Payments;
 using NP.Domain.Posts;
 using NP.Domain.Subscriptions;
 using NP.Domain.Users;
+using NP.Domain.CalorieScans;
 
 namespace NP.Infrastructure.Persistence;
 
@@ -31,6 +32,7 @@ public sealed class ApplicationDbContext : DbContext
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
     public DbSet<NutritionistRating> NutritionistRatings => Set<NutritionistRating>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<CalorieScan> CalorieScans => Set<CalorieScan>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Camera, Upload, X, Loader2, Flame, Beef, Wheat, Droplets, Trash2, Pencil, Check } from 'lucide-react';
-import { estimateCalories } from '../services/api';
+import { estimateCalories, getCalorieScans, updateCalorieScan } from '../services/api';
 
 const TIPS = [
   'Ensure good lighting when taking photos',
@@ -17,21 +17,52 @@ const MacroBadge = ({ icon: Icon, label, value, color }) => (
   </div>
 );
 
-const STORAGE_KEY = 'calorie_history';
-const loadHistory = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } };
-const saveHistory = (e) => localStorage.setItem(STORAGE_KEY, JSON.stringify(e));
-
 const CalorieScanPage = () => {
   const [preview, setPreview]       = useState(null);
   const [file, setFile]             = useState(null);
   const [result, setResult]         = useState(null);
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
-  const [history, setHistory]       = useState(loadHistory);
+  const [history, setHistory]       = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [editingIdx, setEditingIdx] = useState(null);
   const [editCal, setEditCal]       = useState('');
   const [editWeight, setEditWeight] = useState('');
   const fileInputRef                = useRef(null);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setHistoryLoading(true);
+      try {
+        const data = await getCalorieScans();
+        const mappedHistory = data.map(scan => {
+          const d = new Date(scan.createdAt);
+          return {
+            id: scan.id,
+            foodName: scan.foodName,
+            estimatedCalories: scan.estimatedCalories,
+            totalFat: scan.totalFat,
+            totalCarbs: scan.totalCarbs,
+            totalProtein: scan.totalProtein,
+            itemsDetected: scan.itemsDetected,
+            foods: scan.foods,
+            details: scan.details,
+            originalImageBase64: scan.originalImageBase64,
+            segmentedImage: scan.segmentedImageBase64,
+            preview: scan.originalImageBase64 ? `data:image/jpeg;base64,${scan.originalImageBase64}` : null,
+            time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            date: d.toLocaleDateString(),
+          };
+        });
+        setHistory(mappedHistory);
+      } catch (err) {
+        console.error('Failed to load calorie scan history:', err);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   const handleFile = (f) => {
     if (!f) return;
@@ -46,31 +77,66 @@ const CalorieScanPage = () => {
       const data = await estimateCalories(file);
       setResult(data);
       const entry = {
-        id: Date.now(),
+        id: data.id,
         foodName: data.foodName,
         estimatedCalories: data.estimatedCalories,
-        totalFat: data.totalFat, totalCarbs: data.totalCarbs, totalProtein: data.totalProtein,
-        itemsDetected: data.itemsDetected, foods: data.foods, details: data.details,
+        totalFat: data.totalFat,
+        totalCarbs: data.totalCarbs,
+        totalProtein: data.totalProtein,
+        itemsDetected: data.itemsDetected,
+        foods: data.foods,
+        details: data.details,
         segmentedImage: data.segmentedImage,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: new Date().toLocaleDateString(), preview,
+        date: new Date().toLocaleDateString(),
+        preview,
       };
-      setHistory(prev => { const next = [entry, ...prev.slice(0, 9)]; saveHistory(next); return next; });
+      setHistory(prev => [entry, ...prev]);
     } catch (err) {
       setError(err?.detail || 'Failed to estimate calories. Please try again.');
     } finally { setLoading(false); }
   };
 
-  const handleSaveEdit = (idx) => {
+  const handleSaveEdit = async (idx) => {
     const calVal = parseFloat(editCal);
     const weightVal = parseFloat(editWeight);
     if (isNaN(calVal) || calVal < 0 || isNaN(weightVal) || weightVal < 0) return;
-    setResult(prev => {
-      const foods = prev.foods.map((f, i) => i === idx ? { ...f, calories: calVal, weightG: weightVal } : f);
-      const newTotal = foods.reduce((s, f) => s + (f.calories || 0), 0);
-      return { ...prev, foods, estimatedCalories: Math.round(newTotal) };
-    });
-    setEditingIdx(null);
+
+    const scanId = result.id;
+    if (!scanId) {
+      setResult(prev => {
+        const foods = prev.foods.map((f, i) => i === idx ? { ...f, calories: calVal, weightG: weightVal } : f);
+        const newTotal = foods.reduce((s, f) => s + (f.calories || 0), 0);
+        return { ...prev, foods, estimatedCalories: Math.round(newTotal) };
+      });
+      setEditingIdx(null);
+      return;
+    }
+
+    try {
+      const updatedFoods = result.foods.map((f, i) =>
+        i === idx ? { ...f, calories: calVal, weightG: weightVal } : f
+      );
+      const updatedData = await updateCalorieScan(scanId, updatedFoods);
+      setResult(updatedData);
+      setHistory(prev => prev.map(item => {
+        if (item.id === scanId) {
+          return {
+            ...item,
+            estimatedCalories: updatedData.estimatedCalories,
+            totalFat: updatedData.totalFat,
+            totalCarbs: updatedData.totalCarbs,
+            totalProtein: updatedData.totalProtein,
+            foods: updatedData.foods,
+          };
+        }
+        return item;
+      }));
+    } catch (err) {
+      setError(err?.detail || 'Failed to update calorie scan in database.');
+    } finally {
+      setEditingIdx(null);
+    }
   };
 
   const handleClear = () => {
@@ -79,12 +145,20 @@ const CalorieScanPage = () => {
   };
 
   const handleSelectHistory = (scan) => {
-    setPreview(scan.preview); setFile(null); setError('');
+    setPreview(scan.preview || (scan.originalImageBase64 ? `data:image/jpeg;base64,${scan.originalImageBase64}` : null));
+    setFile(null);
+    setError('');
     setResult({
-      foodName: scan.foodName, estimatedCalories: scan.estimatedCalories,
-      totalFat: scan.totalFat, totalCarbs: scan.totalCarbs, totalProtein: scan.totalProtein,
-      itemsDetected: scan.itemsDetected, foods: scan.foods, details: scan.details,
-      segmentedImage: scan.segmentedImage,
+      id: scan.id,
+      foodName: scan.foodName,
+      estimatedCalories: scan.estimatedCalories,
+      totalFat: scan.totalFat,
+      totalCarbs: scan.totalCarbs,
+      totalProtein: scan.totalProtein,
+      itemsDetected: scan.itemsDetected,
+      foods: scan.foods,
+      details: scan.details,
+      segmentedImage: scan.segmentedImage || scan.segmentedImageBase64,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -268,31 +342,34 @@ const CalorieScanPage = () => {
             ))}
           </div>
 
-          {history.length > 0 && (
+          {(historyLoading || history.length > 0) && (
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-slate-900">Recent Scans</h3>
-                <button onClick={() => { setHistory([]); localStorage.removeItem(STORAGE_KEY); }}
-                  className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 transition-colors">
-                  <Trash2 className="w-3 h-3" /> Clear
-                </button>
               </div>
-              <div className="space-y-2">
-                {history.map((scan) => (
-                  <button key={scan.id} onClick={() => handleSelectHistory(scan)}
-                    className="w-full flex items-center p-3 rounded-xl hover:bg-emerald-50 border border-transparent hover:border-emerald-200 transition-all text-left">
-                    <img src={scan.preview} alt={scan.foodName} className="w-10 h-10 rounded-lg object-cover mr-3 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-900 text-sm truncate">{scan.foodName}</p>
-                      <p className="text-xs text-slate-500">{scan.date} · {scan.time}</p>
-                    </div>
-                    <div className="text-right ml-2 flex-shrink-0">
-                      <p className="font-bold text-emerald-600 text-sm">{scan.estimatedCalories}</p>
-                      <p className="text-xs text-slate-500">kcal</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-6 text-slate-400 text-sm gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                  <span>Loading history...</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {history.map((scan) => (
+                    <button key={scan.id} onClick={() => handleSelectHistory(scan)}
+                      className="w-full flex items-center p-3 rounded-xl hover:bg-emerald-50 border border-transparent hover:border-emerald-200 transition-all text-left">
+                      <img src={scan.preview || `data:image/jpeg;base64,${scan.originalImageBase64}`} alt={scan.foodName} className="w-10 h-10 rounded-lg object-cover mr-3 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-900 text-sm truncate capitalize">{scan.foodName}</p>
+                        <p className="text-xs text-slate-500">{scan.date} · {scan.time}</p>
+                      </div>
+                      <div className="text-right ml-2 flex-shrink-0">
+                        <p className="font-bold text-emerald-600 text-sm">{scan.estimatedCalories}</p>
+                        <p className="text-xs text-slate-500">kcal</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
