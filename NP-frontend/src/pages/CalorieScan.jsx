@@ -276,7 +276,16 @@ const CalorieScanPage = () => {
                                 <span className="text-[9px] text-slate-400 font-bold uppercase">Weight (g)</span>
                                 <input
                                   type="number" value={editWeight}
-                                  onChange={e => setEditWeight(e.target.value)}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setEditWeight(val);
+                                    const newW = parseFloat(val);
+                                    const oldW = food.weightG;
+                                    const oldC = food.calories;
+                                    if (!isNaN(newW) && oldW > 0 && !isNaN(oldC)) {
+                                      setEditCal(((newW * oldC) / oldW).toFixed(0));
+                                    }
+                                  }}
                                   onKeyDown={e => e.key === 'Enter' && handleSaveEdit(idx)}
                                   className="w-14 text-xs border border-emerald-300 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                                   autoFocus
