@@ -29,7 +29,8 @@ const CalorieScanPage = () => {
   const [error, setError]           = useState('');
   const [history, setHistory]       = useState(loadHistory);
   const [editingIdx, setEditingIdx] = useState(null);
-  const [editVal, setEditVal]       = useState('');
+  const [editCal, setEditCal]       = useState('');
+  const [editWeight, setEditWeight] = useState('');
   const fileInputRef                = useRef(null);
 
   const handleFile = (f) => {
@@ -60,11 +61,12 @@ const CalorieScanPage = () => {
     } finally { setLoading(false); }
   };
 
-  const handleSaveCalorie = (idx) => {
-    const val = parseFloat(editVal);
-    if (isNaN(val) || val < 0) return;
+  const handleSaveEdit = (idx) => {
+    const calVal = parseFloat(editCal);
+    const weightVal = parseFloat(editWeight);
+    if (isNaN(calVal) || calVal < 0 || isNaN(weightVal) || weightVal < 0) return;
     setResult(prev => {
-      const foods = prev.foods.map((f, i) => i === idx ? { ...f, calories: val } : f);
+      const foods = prev.foods.map((f, i) => i === idx ? { ...f, calories: calVal, weightG: weightVal } : f);
       const newTotal = foods.reduce((s, f) => s + (f.calories || 0), 0);
       return { ...prev, foods, estimatedCalories: Math.round(newTotal) };
     });
@@ -195,31 +197,49 @@ const CalorieScanPage = () => {
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           {editingIdx === idx ? (
-                            <>
-                              <input
-                                type="number" value={editVal}
-                                onChange={e => setEditVal(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleSaveCalorie(idx)}
-                                className="w-20 text-sm border border-emerald-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                                autoFocus
-                              />
-                              <button onClick={() => handleSaveCalorie(idx)}
-                                className="w-7 h-7 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg flex items-center justify-center">
-                                <Check className="w-3.5 h-3.5" />
-                              </button>
-                              <button onClick={() => setEditingIdx(null)}
-                                className="w-7 h-7 bg-slate-200 hover:bg-slate-300 rounded-lg flex items-center justify-center">
-                                <X className="w-3.5 h-3.5 text-slate-600" />
-                              </button>
-                            </>
+                            <div className="flex items-end gap-2">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase">Weight (g)</span>
+                                <input
+                                  type="number" value={editWeight}
+                                  onChange={e => setEditWeight(e.target.value)}
+                                  onKeyDown={e => e.key === 'Enter' && handleSaveEdit(idx)}
+                                  className="w-14 text-xs border border-emerald-300 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                                  autoFocus
+                                />
+                              </div>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase">Calories (kcal)</span>
+                                <input
+                                  type="number" value={editCal}
+                                  onChange={e => setEditCal(e.target.value)}
+                                  onKeyDown={e => e.key === 'Enter' && handleSaveEdit(idx)}
+                                  className="w-16 text-xs border border-emerald-300 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                                />
+                              </div>
+                              <div className="flex gap-1">
+                                <button onClick={() => handleSaveEdit(idx)}
+                                  className="w-7 h-7 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg flex items-center justify-center cursor-pointer">
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button onClick={() => setEditingIdx(null)}
+                                  className="w-7 h-7 bg-slate-200 hover:bg-slate-300 rounded-lg flex items-center justify-center cursor-pointer">
+                                  <X className="w-3.5 h-3.5 text-slate-600" />
+                                </button>
+                              </div>
+                            </div>
                           ) : (
                             <>
                               <div className="text-right">
                                 <p className="font-bold text-slate-900 text-sm">{food.calories?.toFixed(0)} kcal</p>
                                 <p className="text-xs text-slate-400">{(food.confidence * 100).toFixed(0)}% conf.</p>
                               </div>
-                              <button onClick={() => { setEditingIdx(idx); setEditVal(food.calories?.toFixed(0) ?? '0'); }}
-                                className="w-7 h-7 bg-slate-100 hover:bg-emerald-100 rounded-lg flex items-center justify-center transition-colors">
+                              <button onClick={() => {
+                                setEditingIdx(idx);
+                                setEditCal(food.calories?.toFixed(0) ?? '0');
+                                setEditWeight(food.weightG?.toFixed(0) ?? '0');
+                              }}
+                                className="w-7 h-7 bg-slate-100 hover:bg-emerald-100 rounded-lg flex items-center justify-center transition-colors cursor-pointer">
                                 <Pencil className="w-3.5 h-3.5 text-slate-500" />
                               </button>
                             </>

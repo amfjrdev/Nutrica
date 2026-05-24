@@ -134,8 +134,13 @@ internal sealed class AIService : IAIService
         if (root.TryGetProperty("segmented_image", out var segEl) && segEl.ValueKind == JsonValueKind.String)
             segmentedImage = segEl.GetString();
 
-        var foodName = foods.Count > 0
-            ? string.Join(", ", foods.Select(f => f.Name))
+        var groupedFoods = foods
+            .GroupBy(f => f.Name.ToLowerInvariant().Trim())
+            .Select(g => g.Count() > 1 ? $"x{g.Count()} {g.First().Name}" : g.First().Name)
+            .ToList();
+
+        var foodName = groupedFoods.Count > 0
+            ? string.Join(", ", groupedFoods)
             : "No food detected";
 
         var details = foods.Count > 0
