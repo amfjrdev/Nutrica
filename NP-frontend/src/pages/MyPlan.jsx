@@ -294,8 +294,8 @@ const PlanDetail = ({ plan, onBack }) => {
         )}
       </div>
 
-      {/* Feedback + Nutritionist rating — only for non-predefined approved plans */}
-      {!plan.isPredefined && plan.status === 'Approved' && (
+      {/* Feedback + Nutritionist rating — for all approved custom or purchased predefined plans */}
+      {plan.status === 'Approved' && (
         <div className="space-y-6">
 
           {/* Rate the plan */}

@@ -87,7 +87,7 @@ public static class FeedbackEndpoints
         if (client is null) return TypedResults.Problem(title: "Not Found", detail: "Client not found.", statusCode: 404);
 
         var result = await handler.HandleAsync(new GetMyNutritionistRatingQuery(client.Id, nutritionistId), cancellationToken);
-        return result.IsFailure ? result.Error.ToProblem() : TypedResults.Ok(result.Value);
+        return result.IsFailure ? result.Error.ToProblem() : TypedResults.Ok<NutritionistRatingDto?>(result.Value);
     }
 }
 

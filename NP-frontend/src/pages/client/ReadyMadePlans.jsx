@@ -279,7 +279,9 @@ const ReadyMadePlans = () => {
 
                 <div className="flex items-center gap-1 mb-3">
                   <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                  <span className="text-xs font-semibold text-slate-700">4.8</span>
+                  <span className="text-xs font-semibold text-slate-700">
+                    {plan.averageRating > 0 ? plan.averageRating.toFixed(1) : 'No reviews'}
+                  </span>
                 </div>
 
                 <div className="space-y-1.5 mb-4 flex-1">

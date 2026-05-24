@@ -34,16 +34,19 @@ const NutritionistProfile = () => {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg]         = useState('');
   const [isError, setIsError] = useState(false);
-  const [stats, setStats]     = useState({ clients: '—', plans: '—' });
+  const [stats, setStats]     = useState({ clients: '—', plans: '—', averageRating: '—' });
   const [form, setForm]       = useState({ bio: '', specialization: '', certificateUrl: '' });
 
   useEffect(() => {
     getNutritionistProfile()
-      .then((p) => setForm({ bio: p.bio || '', specialization: p.specialization || '', certificateUrl: p.certificateUrl || '' }))
+      .then((p) => {
+        setForm({ bio: p.bio || '', specialization: p.specialization || '', certificateUrl: p.certificateUrl || '' });
+        setStats((prev) => ({ ...prev, averageRating: p.averageRating ?? '—' }));
+      })
       .catch(console.error);
 
     Promise.all([getNutritionistClients(), getMyPlansAsNutritionist()])
-      .then(([clients, plans]) => setStats({ clients: clients.length, plans: plans.length }))
+      .then(([clients, plans]) => setStats((prev) => ({ ...prev, clients: clients.length, plans: plans.length })))
       .catch(console.error);
   }, []);
 
@@ -107,7 +110,7 @@ const NutritionistProfile = () => {
               <div className="space-y-1">
                 <StatItem label="Total Clients"      value={stats.clients} />
                 <StatItem label="Plans Created"      value={stats.plans} />
-                <StatItem label="Average Rating"     value="—" isRating />
+                <StatItem label="Average Rating"     value={stats.averageRating} isRating />
               </div>
             </div>
 

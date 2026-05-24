@@ -42,6 +42,22 @@ const StatusMsg = ({ msg, isError }) => msg ? (
 
 // --- Profile Tab ---
 
+const GOALS = [
+  { value: 'Lose weight',      label: 'Lose Weight' },
+  { value: 'Gain muscle',      label: 'Gain Muscle' },
+  { value: 'Maintain weight',  label: 'Maintain Weight' },
+  { value: 'Improve health',   label: 'Improve Overall Health' },
+  { value: 'Eat healthier',    label: 'Eat Healthier' },
+];
+
+const ACTIVITY_LEVELS = [
+  { value: 'Sedentary',         label: 'Sedentary (little or no exercise)' },
+  { value: 'Lightly active',    label: 'Lightly Active (1-3 days/week)' },
+  { value: 'Moderately active', label: 'Moderately Active (3-5 days/week)' },
+  { value: 'Very active',       label: 'Very Active (6-7 days/week)' },
+  { value: 'Extra active',      label: 'Extra Active (physical job)' },
+];
+
 const ProfileTab = ({ user }) => {
   const [editing, setEditing]   = useState(false);
   const [loading, setLoading]   = useState(false);
@@ -53,16 +69,24 @@ const ProfileTab = ({ user }) => {
   });
 
   useEffect(() => {
-    if (user) setForm({
-      goal:              user.goal || '',
-      activityLevel:     user.activityLevel || '',
-      weight:            user.weight || '',
-      height:            user.height || '',
-      age:               user.age || '',
-      gender:            user.gender || '',
-      medicalConditions: user.medicalConditions || '',
-      foodAllergies:     user.foodAllergies || '',
-    });
+    if (user) {
+      const dbGoal = user.goal || '';
+      const matchedGoal = GOALS.find(g => g.value.toLowerCase() === dbGoal.toLowerCase())?.value || dbGoal;
+
+      const dbActivity = user.activityLevel || '';
+      const matchedActivity = ACTIVITY_LEVELS.find(a => a.value.toLowerCase() === dbActivity.toLowerCase())?.value || dbActivity;
+
+      setForm({
+        goal:              matchedGoal,
+        activityLevel:     matchedActivity,
+        weight:            user.weight || '',
+        height:            user.height || '',
+        age:               user.age || '',
+        gender:            user.gender || '',
+        medicalConditions: user.medicalConditions || '',
+        foodAllergies:     user.foodAllergies || '',
+      });
+    }
   }, [user]);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -136,8 +160,26 @@ const ProfileTab = ({ user }) => {
             <option value="Female">Female</option>
           </select>
         </div>
-        <Field label="Goal"           value={form.goal}           onChange={set('goal')}           disabled={!editing} />
-        <Field label="Activity Level" value={form.activityLevel}  onChange={set('activityLevel')}  disabled={!editing} />
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Goal</label>
+          <select value={form.goal} onChange={set('goal')} disabled={!editing}
+            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:opacity-60 transition-all">
+            <option value="">Select...</option>
+            {GOALS.map((g) => (
+              <option key={g.value} value={g.value}>{g.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Activity Level</label>
+          <select value={form.activityLevel} onChange={set('activityLevel')} disabled={!editing}
+            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:opacity-60 transition-all">
+            <option value="">Select...</option>
+            {ACTIVITY_LEVELS.map((a) => (
+              <option key={a.value} value={a.value}>{a.label}</option>
+            ))}
+          </select>
+        </div>
         <Field label="Medical Conditions" value={form.medicalConditions} onChange={set('medicalConditions')} disabled={!editing} />
         <Field label="Food Allergies"     value={form.foodAllergies}     onChange={set('foodAllergies')}     disabled={!editing} />
       </div>
